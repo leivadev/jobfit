@@ -1,5 +1,6 @@
 import pandas as pd
 from datasets import load_dataset
+from text import WHITESPACE_RE
 
 DATASET_NAME = "lang-uk/recruitment-dataset-job-descriptions-english"
 
@@ -22,8 +23,8 @@ def deduplicate_jobs(df: pd.DataFrame) -> pd.DataFrame:
     """Dedup by (Company Name, Position), case-insensitive/whitespace-normalized comparison,
     keeping the first-seen row with its original casing. Pure."""
     dedup_key = (
-        df["Company Name"].str.strip().str.lower().str.replace(r"\s+", " ", regex=True)
+        df["Company Name"].str.strip().str.lower().str.replace(WHITESPACE_RE, " ", regex=True)
         + "\x00"
-        + df["Position"].str.strip().str.lower().str.replace(r"\s+", " ", regex=True)
+        + df["Position"].str.strip().str.lower().str.replace(WHITESPACE_RE, " ", regex=True)
     )
     return df[~dedup_key.duplicated()]

@@ -1,9 +1,15 @@
 import re
+from typing import Protocol
 
 BOLD_EMPHASIS_RE = re.compile(r"\*\*(.+?)\*\*")
 ITALIC_EMPHASIS_RE = re.compile(r"\*(.+?)\*")
 BULLET_MARKER_RE = re.compile(r"(?m)^[ \t]*[-*•]\s+")
 WHITESPACE_RE = re.compile(r"\s+")
+
+
+class Tokenizer(Protocol):
+    def encode(self, text: str, add_special_tokens: bool) -> list[int]: ...
+    def decode(self, token_ids: list[int]) -> str: ...
 
 
 def clean_text(text: str) -> str:
@@ -20,7 +26,7 @@ def build_job_text(position: str, description: str) -> str:
     return f"{position}\n{description}"
 
 
-def chunk_text(text: str, tokenizer, max_tokens: int = 256) -> list[str]:
+def chunk_text(text: str, tokenizer: Tokenizer, max_tokens: int = 256) -> list[str]:
     """Split text into non-overlapping windows of at most max_tokens tokens.
 
     Uses the real model tokenizer rather than a char/word-count heuristic
