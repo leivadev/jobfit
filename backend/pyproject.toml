@@ -33,3 +33,8 @@ dev = [
     "pytest-cov>=7.1.0",
     "ruff>=0.16.6",
 ]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks tests that hit real external services",
+]
