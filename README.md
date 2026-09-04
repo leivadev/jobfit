@@ -1,18 +1,18 @@
 # JobFit
 
-> Motor de Recomendación de Vacantes de TI basado en Representaciones Vectoriales Densas
+> Dense Vector Representation-based IT Job Recommendation Engine
 
-Un visitante sube su CV y recibe las vacantes de TI más afines, usando **embeddings semánticos** sobre un dataset real de ofertas de empleo. Proyecto de portafolio con foco en embeddings, búsqueda vectorial y reranking, combinado con ingeniería de software (backend, frontend, despliegue, privacidad de datos de usuario).
+A visitor uploads their resume and receives the most relevant IT job postings, using **semantic embeddings** over a real job listings dataset. Portfolio project focused on embeddings, vector search, and reranking, combined with software engineering (backend, frontend, deployment, user data privacy).
 
-**Estado**: en fase de diseño y scaffolding. Todavía no hay pipeline ni API funcionando — este README documenta la arquitectura acordada, no funcionalidad ya implementada.
+**Status**: in design and scaffolding phase. There is no working pipeline or API yet — this README documents the agreed-upon architecture, not already-implemented functionality.
 
-## Arquitectura
+## Architecture
 
 ```mermaid
 flowchart TD
     subgraph Offline[" "]
         direction LR
-        HF[("Dataset HF")] --> PIPE["scripts/build_index.py\n(pipeline offline, batch)"]
+        HF[("HF Dataset")] --> PIPE["scripts/build_index.py\n(offline batch pipeline)"]
     end
 
     subgraph R2["Cloudflare R2"]
@@ -23,59 +23,59 @@ flowchart TD
 
     subgraph Backend["Backend · Railway / Fly.io · jobfit-api.leivadev.com"]
         direction LR
-        EX["Extracción\nde texto"] --> EMB["Embedding\nCV"] --> SEARCH["Búsqueda\nFAISS"] --> RERANK["Rerank\ncross-encoder"]
+        EX["Text\nextraction"] --> EMB["Resume\nembedding"] --> SEARCH["FAISS\nsearch"] --> RERANK["Cross-encoder\nrerank"]
     end
 
     FE["Frontend SPA\nReact + Vite\nCloudflare Workers\njobfit-app.leivadev.com"]
 
     PIPE -- "upload (wrangler r2 / boto3)" --> R2
-    Backend -- "boto3 S3 API, al iniciar" --> R2
-    FE -- "POST /recommend (multipart CV)" --> Backend
+    Backend -- "boto3 S3 API, on startup" --> R2
+    FE -- "POST /recommend (multipart resume)" --> Backend
     Backend -- "JSON response" --> FE
 ```
 
-Pipeline offline y servicio online están desacoplados: el pipeline se corre una vez (o cuando se actualiza el dataset) y produce artefactos versionados en R2; el backend solo los descarga al arrancar y los sirve desde memoria.
+The offline pipeline and the online service are decoupled: the pipeline runs once (or whenever the dataset is updated) and uploads its artifacts to a fixed key in R2, overwriting the previous run (see ADR-0006); the backend only downloads them at startup and serves them from memory.
 
-**No hay base de datos.** El corpus de vacantes se consulta por similitud vectorial, no con queries relacionales, y cabe entero en memoria. El CV del usuario se procesa en memoria y nunca se persiste (ver [Privacidad](#privacidad)).
+**There is no database.** The job corpus is queried via vector similarity, not relational queries, and fits entirely in memory. The user's resume is processed in memory and never persisted (see [Privacy](#privacy)).
 
 ## Stack
 
-| Componente | Elección | Motivo |
+| Component | Choice | Reason |
 | --- | --- | --- |
-| Embeddings | `sentence-transformers/all-MiniLM-L6-v2` | Rápido, liviano, buen baseline |
-| Reranking | Cross-encoder (`cross-encoder/ms-marco-MiniLM-L-6-v2` o similar) | Mejora precisión sobre el top-100 |
-| Búsqueda vectorial | FAISS (`IndexFlatIP`, in-memory) | Suficiente para 10-20k vectores |
-| Backend | FastAPI | Async, tipado, OpenAPI automático |
-| Extracción CV | `pypdf`/`pdfplumber`, `python-docx` | Cobertura PDF y DOCX |
-| Gestor de deps (backend) | `uv` | Rápido, lockfile, un solo binario |
-| Frontend | React + Vite + Tailwind | Estándar, rápido de armar para una sola pantalla |
-| Gestor de deps (frontend) | `pnpm` | Eficiente, integra bien con el ecosistema Wrangler |
-| Despliegue backend | Railway o Fly.io | Soporta dependencias ML pesadas (torch, faiss) |
-| Despliegue frontend | Cloudflare Workers (Static Assets) | Free tier, mismo ecosistema que R2 |
-| Almacenamiento de artefactos | Cloudflare R2 | Zero egress fees, S3-compatible |
+| Embeddings | `sentence-transformers/all-MiniLM-L6-v2` | Fast, lightweight, good baseline |
+| Reranking | Cross-encoder (`cross-encoder/ms-marco-MiniLM-L-6-v2` or similar) | Improves precision over the top-100 |
+| Vector search | FAISS (`IndexFlatIP`, in-memory) | Sufficient for 10-20k vectors |
+| Backend | FastAPI | Async, typed, automatic OpenAPI |
+| Resume extraction | `pypdf`/`pdfplumber`, `python-docx` | PDF and DOCX coverage |
+| Dependency manager (backend) | `uv` | Fast, lockfile, single binary |
+| Frontend | React + Vite + Tailwind | Standard, quick to build for a single screen |
+| Dependency manager (frontend) | `pnpm` | Efficient, integrates well with the Wrangler ecosystem |
+| Backend deployment | Railway or Fly.io | Supports heavy ML dependencies (torch, faiss) |
+| Frontend deployment | Cloudflare Workers (Static Assets) | Free tier, same ecosystem as R2 |
+| Artifact storage | Cloudflare R2 | Zero egress fees, S3-compatible |
 
-## Datos
+## Data
 
-- **Vacantes**: [`lang-uk/recruitment-dataset-job-descriptions-english`](https://huggingface.co/datasets/lang-uk/recruitment-dataset-job-descriptions-english) (~142k ofertas IT, plataforma Djinni, 2020-2023, MIT). Filtrado a 10-20k vacantes por categoría IT más representada, deduplicado.
-- **Evaluación offline**: [`lang-uk/recruitment-dataset-candidate-profiles-english`](https://huggingface.co/datasets/lang-uk/recruitment-dataset-candidate-profiles-english) (~230k CVs anonimizados), nunca expuesto en producción.
+- **Job postings**: [`lang-uk/recruitment-dataset-job-descriptions-english`](https://huggingface.co/datasets/lang-uk/recruitment-dataset-job-descriptions-english) (~142k IT postings, Djinni platform, 2020-2023, MIT). Filtered to the most represented `Primary Keyword` categories (QA, DevOps, iOS/Android, Data, main languages), deduplicated — see `docs/design/phase-1-offline-pipeline.md`.
+- **Offline evaluation**: [`lang-uk/recruitment-dataset-candidate-profiles-english`](https://huggingface.co/datasets/lang-uk/recruitment-dataset-candidate-profiles-english) (~230k anonymized resumes), never exposed in production.
 
-## Estructura del repo
+## Repo structure
 
 ```
 jobfit/
-├── backend/            # FastAPI + pipeline offline (uv)
-│   ├── app/             # API, extracción, embeddings, búsqueda, rerank
-│   ├── scripts/          # build_index.py (pipeline offline, batch)
+├── backend/            # FastAPI + offline pipeline (uv)
+│   ├── app/             # API, extraction, embeddings, search, rerank
+│   ├── scripts/          # build_index.py (offline batch pipeline)
 │   └── tests/
-├── frontend/            # React + Vite, desplegado en Cloudflare Workers
+├── frontend/            # React + Vite, deployed on Cloudflare Workers
 ├── docs/
 │   ├── adr/              # Architecture Decision Records
-│   ├── design/           # Contrato de API, scope, evaluación, frontend
-│   └── research/         # Investigación abierta (aún no son decisiones)
-└── CONTEXT.md           # Vocabulario de dominio compartido
+│   ├── design/           # API contract, scope, evaluation, frontend
+│   └── research/         # Open research (not yet decisions)
+└── CONTEXT.md           # Shared domain vocabulary
 ```
 
-## Desarrollo local
+## Local development
 
 ### Backend
 
@@ -94,26 +94,26 @@ pnpm install
 pnpm dev
 ```
 
-## Privacidad
+## Privacy
 
-Cualquier persona puede subir su CV real a un demo público. Para asegurar privacidad:
+Anyone can upload their real resume to a public demo. To ensure privacy:
 
-- El CV se procesa **en memoria**, nunca se escribe a disco ni se persiste.
-- No se loggea el contenido del CV, solo métricas agregadas (tamaño, tiempo de proceso, errores).
-- Rate limiting en el endpoint público, límite de tamaño de archivo y validación de tipo MIME.
+- The resume is processed **in memory**, never written to disk or persisted.
+- Resume content is not logged, only aggregate metrics (size, processing time, errors).
+- Rate limiting on the public endpoint, file size limit, and MIME type validation.
 
 ## API
 
-Ver [`docs/design/api-contract.md`](docs/design/api-contract.md) para el contrato completo de `/recommend` y `/health`.
+See [`docs/design/api-contract.md`](docs/design/api-contract.md) for the full `/recommend` and `/health` contract.
 
-## Evaluación
+## Evaluation
 
-Métricas offline (Precision@10, Recall@10, MRR) sobre el dataset de CVs reales, comparando bi-encoder solo vs. bi-encoder + cross-encoder rerank. Metodología completa en [`docs/design/evaluation.md`](docs/design/evaluation.md); resultados documentados aquí una vez implementada la Fase 8 del plan.
+Offline metrics (Precision@10, Recall@10, MRR) on the real resume dataset, comparing bi-encoder only vs. bi-encoder + cross-encoder rerank. Full methodology in [`docs/design/evaluation.md`](docs/design/evaluation.md); results documented here once Phase 8 of the plan is implemented.
 
-## Estado del proyecto
+## Project status
 
-Ver `docs/adr/` para las decisiones de arquitectura ya tomadas y su justificación. El plan completo (fases, alcance, decisiones abiertas) se gestiona fuera de este repo como documento de diseño; este README se actualiza a medida que cada fase se implementa.
+See `docs/adr/` for architecture decisions already made and their rationale. The full plan (phases, scope, open decisions) is managed outside this repo as a design document; this README is updated as each phase is implemented.
 
-## Licencia
+## License
 
 [MIT](LICENSE).
