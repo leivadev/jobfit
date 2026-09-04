@@ -6,7 +6,9 @@ DATASET_NAME = "lang-uk/recruitment-dataset-job-descriptions-english"
 
 def load_raw_jobs() -> pd.DataFrame:
     """Download the dataset via `datasets`."""
-    return load_dataset(DATASET_NAME, split="train").to_pandas()
+    df = load_dataset(DATASET_NAME, split="train").to_pandas()
+    assert isinstance(df, pd.DataFrame)
+    return df
 
 
 def filter_jobs(df: pd.DataFrame, keywords: list[str], min_desc_chars: int = 200) -> pd.DataFrame:
