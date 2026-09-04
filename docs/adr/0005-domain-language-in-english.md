@@ -1,0 +1,3 @@
+# Domain modeled in English, despite Spanish-language planning docs
+
+The project's planning history (Obsidian vault, early conversations) is in Spanish, matching the author's other documentation. But code identifiers are English by convention, and `CONTEXT.md` exists so coding agents can map vocabulary to code without translation friction. We decided the domain itself — `CONTEXT.md`, ADRs, `docs/design/` — is modeled in English going forward, breaking from the Spanish-language convention used elsewhere in the author's documentation. The high-level portfolio narrative and open-ended planning stays in the Obsidian vault, in Spanish; this repo's operative docs are English.
