@@ -77,25 +77,39 @@ def run(
     settings: Settings,
 ) -> tuple[faiss.Index, pd.DataFrame]:
     """Run filter -> dedup -> embed -> index -> save -> upload on `df`. Writes to R2."""
+    print(f"[build_index] filtering + deduping {len(df)} raw rows...")
     metadata = build_metadata(df)
+    print(f"[build_index] {len(metadata)} rows after filter/dedup")
 
+    print("[build_index] loading embedding model...")
     model = load_model()
+
+    print(f"[build_index] embedding {len(metadata)} job texts...")
     embeddings = embed_texts(metadata["job_text"].tolist(), model)
+    print(f"[build_index] embedded, shape={embeddings.shape}")
+
+    print("[build_index] building FAISS index...")
     index = build_faiss_index(embeddings)
 
+    print(f"[build_index] saving artifacts to {index_path} and {metadata_path}...")
     index_path.parent.mkdir(parents=True, exist_ok=True)
     save_artifacts(index, metadata, index_path, metadata_path)
 
+    print(f"[build_index] uploading artifacts to R2 bucket {settings.r2_bucket_name}...")
     client = build_r2_client(settings)
     upload_artifacts(client, settings, index_path, metadata_path)
+    print("[build_index] upload complete")
 
     return index, metadata
 
 
 def main() -> None:
-    settings = Settings()
+    settings = Settings()  # type: ignore[call-arg]
+    print("[build_index] loading raw dataset...")
     df = load_raw_jobs()
+    print(f"[build_index] loaded {len(df)} raw rows")
     run(df, ARTIFACTS_DIR / "jobs.index", ARTIFACTS_DIR / "jobs_metadata.parquet", settings)
+    print("[build_index] done")
 
 
 if __name__ == "__main__":

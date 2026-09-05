@@ -1,6 +1,8 @@
 import numpy as np
 import torch
 from sentence_transformers import SentenceTransformer
+from tqdm import tqdm
+
 from text import chunk_text
 
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
@@ -10,8 +12,15 @@ MODEL_REVISION = "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"
 
 
 def load_model() -> SentenceTransformer:
-    """Load all-MiniLM-L6-v2 pinned to an exact HF revision."""
-    return SentenceTransformer(MODEL_NAME, revision=MODEL_REVISION)
+    """Load all-MiniLM-L6-v2 pinned to an exact HF revision.
+
+    Raises model_max_length so tokenizer.encode() in chunk_text doesn't warn
+    about "sequence length > 256" — that call is intentionally unbounded
+    since chunking (not truncation) handles the limit (ADR-0007).
+    """
+    model = SentenceTransformer(MODEL_NAME, revision=MODEL_REVISION)
+    model.tokenizer.model_max_length = int(1e9)
+    return model
 
 
 def embed_texts(texts: list[str], model: SentenceTransformer) -> np.ndarray:
@@ -26,7 +35,9 @@ def embed_texts(texts: list[str], model: SentenceTransformer) -> np.ndarray:
     dim = model.get_embedding_dimension()
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    chunks_per_text = [chunk_text(text, model.tokenizer) for text in texts]
+    chunks_per_text = [
+        chunk_text(text, model.tokenizer) for text in tqdm(texts, desc="chunking texts", unit="text")
+    ]
     chunk_counts = [len(chunks) for chunks in chunks_per_text]
     all_chunks = [chunk for chunks in chunks_per_text for chunk in chunks]
 
@@ -55,9 +66,9 @@ def _encode_raw(model: SentenceTransformer, texts: list[str], device: str) -> np
     model.to(device)
     batches = []
     with torch.no_grad():
-        for start in range(0, len(texts), 128):
+        for start in tqdm(range(0, len(texts), 128), desc="embedding chunks", unit="batch"):
             batch = texts[start : start + 128]
-            features = model.tokenize(batch)
+            features = model.preprocess(batch)
             features = {
                 key: value.to(device) if torch.is_tensor(value) else value
                 for key, value in features.items()
