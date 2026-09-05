@@ -1,10 +1,10 @@
 [project]
 name = "backend"
 version = "0.1.0"
-description = "Add your description here"
+description = "JobFit backend: CV-to-job matching pipeline"
 readme = "README.md"
 authors = [
-    { name = "Luislev", email = "luis.leiva@utp.ac.pa" }
+    { name = "leivadev" }
 ]
 requires-python = ">=3.12"
 dependencies = [
