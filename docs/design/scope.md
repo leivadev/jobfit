@@ -8,6 +8,7 @@
 - Simple frontend: upload CV, view ranked Recommendations with score and snippet.
 - Public deployment, no login required.
 - Offline quantitative evaluation against the real-CV dataset (Precision@k, Recall@k, MRR) — see `docs/design/evaluation.md`.
+- Job corpus filtered to the most-represented `Primary Keyword` values in the source dataset (QA, QA Automation, DevOps, iOS, Android, Data Analyst, Data Engineer, Data Science, and major language keywords like JavaScript, Python, Java, .NET) — see `docs/design/phase-1-offline-pipeline.md`. The dataset has no unified "backend"/"frontend"/"mobile" category; an earlier draft assumed one.
 
 ## Out of scope (future phase, not MVP)
 

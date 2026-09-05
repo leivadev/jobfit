@@ -25,8 +25,8 @@ The non-vector fields of a Job (title, company, experience years, keyword) store
 _Avoid_: Metadata store.
 
 **Artifact**:
-A versioned output of the Offline Pipeline (the Job Index or Job Metadata file), stored in R2 and loaded into memory by the backend at startup.
-_Avoid_: File, Build output.
+An output of the Offline Pipeline (the Job Index or Job Metadata file), stored in R2 at a fixed key and loaded into memory by the backend at startup. Each pipeline run overwrites the previous Artifact in place — see ADR-0006 for why this isn't versioned.
+_Avoid_: File, Build output, Versioned artifact.
 
 **Offline Pipeline**:
 The batch process that filters the source dataset, generates embeddings, and produces Artifacts. Runs independently of user requests, never in the request path.
