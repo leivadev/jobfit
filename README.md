@@ -4,7 +4,7 @@
 
 A visitor uploads their resume and receives the most relevant IT job postings, using **semantic embeddings** over a real job listings dataset. Portfolio project focused on embeddings, vector search, and reranking, combined with software engineering (backend, frontend, deployment, user data privacy).
 
-**Status**: in design and scaffolding phase. There is no working pipeline or API yet — this README documents the agreed-upon architecture, not already-implemented functionality.
+**Status**: the offline pipeline (Phase 1) is implemented; the backend API and frontend are not yet built. This README documents the agreed-upon architecture for the parts not yet implemented.
 
 ## Architecture
 
@@ -64,7 +64,8 @@ The offline pipeline and the online service are decoupled: the pipeline runs onc
 ```
 jobfit/
 ├── backend/            # FastAPI + offline pipeline (uv)
-│   ├── app/             # API, extraction, embeddings, search, rerank
+│   ├── src/backend/      # installable package: config, API, domain (extraction, embeddings, search, rerank)
+│   ├── app/              # offline pipeline: dataset, text, embeddings, index, storage
 │   ├── scripts/          # build_index.py (offline batch pipeline)
 │   └── tests/
 ├── frontend/            # React + Vite, deployed on Cloudflare Workers
