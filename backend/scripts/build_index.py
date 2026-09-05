@@ -12,10 +12,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "app"))
 import faiss
 import pandas as pd
 from dataset import deduplicate_jobs, filter_jobs, load_raw_jobs
+from dotenv import load_dotenv
 from embeddings import embed_texts, load_model
 from index import build_faiss_index, save_artifacts
 from storage import build_r2_client, upload_artifacts
 from text import build_job_text, clean_text
+
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 from backend.config import Settings
 
