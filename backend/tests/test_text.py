@@ -51,3 +51,55 @@ def test_build_job_text_joins_position_and_description():
     result = build_job_text("Python Developer", "Line1\r\nLine2")
 
     assert result == "Python Developer\nLine1\r\nLine2"
+
+
+def test_clean_text_drops_bilingual_mirror_section():
+    # Real dataset shape: an English section followed by a full Ukrainian
+    # mirror translation of the same content, under a Ukrainian header.
+    text = (
+        "Requirements\r\n\r\n"
+        "We need a Python Developer with 3+ years experience.\r\n\r\n"
+        "Вимоги\r\n\r\n"
+        "Потрібен Python Developer з досвідом 3+ роки."
+    )
+
+    result = clean_text(text)
+
+    assert result == "Requirements We need a Python Developer with 3+ years experience."
+
+
+def test_clean_text_drops_cyrillic_header_glued_to_english_block():
+    # Real dataset shape: a Ukrainian header line joined to an English
+    # paragraph by a single line break, not a blank-line paragraph gap.
+    text = "Про компанію CHI Software\nWe build products for clients worldwide."
+
+    result = clean_text(text)
+
+    assert result == "We build products for clients worldwide."
+
+
+def test_clean_text_strips_cyrillic_parenthetical_from_title():
+    # Real dataset shape: 'Business Analyst (Бізнес-аналітик)' — the
+    # Ukrainian translation of the title is parenthetical, not the whole line.
+    text = "Business Analyst (Бізнес-аналітик)"
+
+    result = clean_text(text)
+
+    assert result == "Business Analyst"
+
+
+def test_clean_text_keeps_english_half_of_slash_separated_title():
+    # Real dataset shape: 'Account manager / Менеджер по роботі з клієнтами'.
+    text = "Account manager / Менеджер по роботі з клієнтами"
+
+    result = clean_text(text)
+
+    assert result == "Account manager"
+
+
+def test_clean_text_keeps_english_line_with_few_cyrillic_loanwords():
+    text = "We use Jira and Confluence for planning."
+
+    result = clean_text(text)
+
+    assert result == text
