@@ -2,15 +2,19 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.routes import router
 from backend.api.state import AppState, build_state
-from backend.config import Settings
+from backend.config import Settings, resolve_cors_allowed_origins
 
 StateFactory = Callable[[], AppState]
 
 
-def create_app(state_factory: StateFactory | None = None) -> FastAPI:
+def create_app(
+    state_factory: StateFactory | None = None,
+    cors_origins: list[str] | None = None,
+) -> FastAPI:
     """Build the FastAPI app, wiring Artifact/model loading into startup.
 
     `state_factory` defaults to loading real Artifacts from R2 and real
@@ -20,8 +24,13 @@ def create_app(state_factory: StateFactory | None = None) -> FastAPI:
     lifespan context manager, which fails ASGI server startup — the process
     exits non-zero before serving a request (no in-process retry; the
     deployment platform's restart loop is the retry mechanism).
+
+    `cors_origins` defaults to the `CORS_ALLOWED_ORIGINS`-configured
+    allowlist (see `backend.config.resolve_cors_allowed_origins`); tests
+    override it to check specific origins without depending on env state.
     """
     factory = state_factory or (lambda: build_state(Settings()))  # type: ignore[call-arg]
+    origins = cors_origins if cors_origins is not None else resolve_cors_allowed_origins()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -29,6 +38,11 @@ def create_app(state_factory: StateFactory | None = None) -> FastAPI:
         yield
 
     app = FastAPI(lifespan=lifespan)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_methods=["GET", "POST"],
+    )
     app.include_router(router)
     return app
 

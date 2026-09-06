@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from backend.config import Settings
+from backend.config import Settings, resolve_cors_allowed_origins
 
 
 def test_settings_loads_from_env(monkeypatch):
@@ -32,3 +32,21 @@ def test_settings_requires_all_fields(monkeypatch):
 
     with pytest.raises(ValidationError):
         Settings(_env_file=None)
+
+
+def test_cors_allowed_origins_defaults_to_local_dev_frontend(monkeypatch):
+    monkeypatch.delenv("CORS_ALLOWED_ORIGINS", raising=False)
+
+    assert resolve_cors_allowed_origins() == ["http://localhost:5173"]
+
+
+def test_cors_allowed_origins_reads_comma_separated_env_var(monkeypatch):
+    monkeypatch.setenv(
+        "CORS_ALLOWED_ORIGINS",
+        "https://jobfit-app.leivadev.com, http://localhost:5173",
+    )
+
+    assert resolve_cors_allowed_origins() == [
+        "https://jobfit-app.leivadev.com",
+        "http://localhost:5173",
+    ]
