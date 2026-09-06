@@ -3,7 +3,7 @@ from dataclasses import dataclass
 EXP_YEARS_SCALE = ["no_exp", "1y", "2y", "3y", "5y"]
 _EXP_YEARS_RANK = {bucket: rank for rank, bucket in enumerate(EXP_YEARS_SCALE)}
 
-KEYWORDS = frozenset(
+KEYWORD_VOCABULARY = frozenset(
     {
         ".NET",
         "Android",
@@ -53,7 +53,9 @@ def validate_candidate_signals(signals: CandidateSignals) -> None:
         raise InvalidCandidateSignalError(f"Invalid exp_years: {signals.exp_years!r}")
 
     if signals.keywords is not None:
-        invalid = [keyword for keyword in signals.keywords if keyword not in KEYWORDS]
+        invalid = [
+            keyword for keyword in signals.keywords if keyword not in KEYWORD_VOCABULARY
+        ]
         if invalid:
             raise InvalidCandidateSignalError(f"Invalid keywords: {invalid!r}")
 

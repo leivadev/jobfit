@@ -2,7 +2,7 @@ import pytest
 
 from backend.domain.matching import (
     EXP_YEARS_SCALE,
-    KEYWORDS,
+    KEYWORD_VOCABULARY,
     CandidateSignals,
     InvalidCandidateSignalError,
     exp_distance,
@@ -16,7 +16,7 @@ def test_exp_years_scale_is_the_five_ordered_buckets():
 
 
 def test_keywords_is_the_eighteen_value_controlled_vocabulary():
-    assert KEYWORDS == {
+    assert KEYWORD_VOCABULARY == {
         ".NET",
         "Android",
         "C++",

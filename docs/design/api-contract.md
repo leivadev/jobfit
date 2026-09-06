@@ -33,7 +33,7 @@ See `CONTEXT.md` for term definitions (Job, CV, Candidate Profile, Similarity Sc
 The field is `rerank_score`, not `score`: only the Cross-encoder's score is exposed to the client. The Bi-encoder's Similarity Score is an internal detail of candidate selection and never appears in the response — see `CONTEXT.md` for why these are modeled as two distinct concepts.
 
 - `keyword_match: bool` — whether any of the candidate's declared `keywords` overlaps the job's `keyword`. `false` when the candidate didn't declare any `keywords` (absent signal, not a negative match).
-- `exp_distance: int | None` — symmetric ordinal distance between the candidate's declared `exp_years` bucket and the job's, on the `no_exp`/`1y`/`2y`/`3y`/`5y` scale (0 = exact match, up to 4 = maximally apart). `None` when the candidate didn't declare `exp_years`.
+- `exp_distance: int | None` — symmetric ordinal distance between the candidate's declared `exp_years` bucket and the job's, on the `no_exp`/`1y`/`2y`/`3y`/`5y` scale (0 = exact match, up to 4 = maximally apart). `None` when the candidate didn't declare `exp_years`, or when the job's `exp_years` isn't one of the five buckets (Job Metadata's `exp_years` isn't validated against the scale at ingestion, unlike `keyword`).
 
 ## `GET /health`
 

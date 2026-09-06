@@ -51,3 +51,15 @@ _Avoid_: Score (alone), Final score.
 **Recommendation**:
 A single (Job, Rerank Score) pair returned to the user — one entry in the final ranked list.
 _Avoid_: Result, Match.
+
+**Candidate Signals**:
+The candidate's own declared experience/skills (`exp_years`, `keywords`), submitted as optional `/recommend` form fields. Distinct from Job Metadata's `exp_years`/`keyword`: Candidate Signals describe the candidate, Job Metadata describes the Job. Either signal may be absent.
+_Avoid_: Preferences, Filters.
+
+**Keyword Match**:
+Whether any of the candidate's declared Candidate Signals keywords overlaps a Job's `keyword`. Not a `Recommendation` field named after ranking (see `Recommendation`'s avoided "Match") — it's an annotation on a Recommendation, not the Recommendation itself.
+_Avoid_: Skill match.
+
+**Exp Distance**:
+The symmetric ordinal distance between a candidate's declared `exp_years` bucket and a Job's, on the shared 5-bucket scale. `None` when either side's bucket is absent or unrecognized — never a stand-in for 0.
+_Avoid_: Experience gap, Seniority gap.
