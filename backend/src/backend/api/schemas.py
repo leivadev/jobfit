@@ -8,6 +8,8 @@ class Recommendation(BaseModel):
     exp_years: str
     keyword: str
     snippet: str
+    keyword_match: bool
+    exp_distance: int | None
 
 
 class RecommendResponse(BaseModel):
