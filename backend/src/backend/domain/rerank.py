@@ -67,3 +67,39 @@ def rerank(
     ]
     results.sort(key=lambda result: result.rerank_score, reverse=True)
     return results[:top_k]
+
+
+@dataclass(frozen=True)
+class TieredJob:
+    """A shortlisted Job carrying its Rerank Score plus precomputed `keyword_match`/`exp_distance`.
+
+    Decoupled from `matching.CandidateSignals` and Job Metadata so
+    `tier_by_fit` stays pure: callers compute `keyword_match`/`exp_distance`
+    from Job Metadata first, then hand in the plain result.
+    """
+
+    job_row: int
+    rerank_score: float
+    keyword_match: bool
+    exp_distance: int | None
+
+
+def tier_by_fit(jobs: list[TieredJob]) -> list[TieredJob]:
+    """Tiered sort: `keyword_match` first, then `exp_distance` ascending, then `rerank_score` descending as tiebreak.
+
+    Applied as three stable sorts from least to most significant criterion, so
+    a criterion that's constant across `jobs` (e.g. every `exp_distance` is
+    `None` because the candidate didn't declare `exp_years`) leaves the prior
+    order untouched — ranking degrades to pure `rerank_score` ordering exactly
+    when a signal wasn't provided, with no special-casing needed. Within the
+    `exp_distance` pass, a job whose distance is `None` sorts after every job
+    with a known distance in the same `keyword_match` tier; this is a genuine
+    no-op only when every job's distance is `None` (signal not declared) — for
+    the rarer case of one job's Job Metadata carrying an off-scale
+    `exp_years` bucket alongside others with known distances, it sorts that
+    job last within its tier rather than truly neutrally. Pure.
+    """
+    ranked = sorted(jobs, key=lambda job: job.rerank_score, reverse=True)
+    ranked.sort(key=lambda job: (job.exp_distance is None, job.exp_distance))
+    ranked.sort(key=lambda job: not job.keyword_match)
+    return ranked

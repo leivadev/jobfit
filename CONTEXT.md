@@ -45,7 +45,7 @@ The Bi-encoder's cosine similarity between a Candidate Profile embedding and a J
 _Avoid_: Score (alone), Relevance.
 
 **Rerank Score**:
-The Cross-encoder's score for a (Candidate Profile, Job) pair. Determines the final ranking of Recommendations shown to the user.
+The Cross-encoder's score for a (Candidate Profile, Job) pair. Determines the final ranking of Recommendations shown to the user when neither Candidate Signal was declared; otherwise it's the tiebreaker within a Keyword Match/Exp Distance tier, never blended with those signals arithmetically.
 _Avoid_: Score (alone), Final score.
 
 **Recommendation**:

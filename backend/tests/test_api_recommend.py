@@ -133,13 +133,7 @@ def test_recommend_without_exp_years_or_keywords_leaves_new_fields_absent_signal
         assert result["exp_distance"] is None
 
 
-def test_recommend_computes_keyword_match_and_exp_distance_without_changing_ranking(client):
-    baseline = client.post(
-        "/recommend",
-        files={"file": ("cv.txt", CANDIDATE_PROFILE.encode("utf-8"), "text/plain")},
-    )
-    baseline_positions = [r["position"] for r in baseline.json()["results"]]
-
+def test_recommend_tiers_by_keyword_match_then_exp_distance_when_both_signals_declared(client):
     response = client.post(
         "/recommend",
         files={"file": ("cv.txt", CANDIDATE_PROFILE.encode("utf-8"), "text/plain")},
@@ -148,7 +142,15 @@ def test_recommend_computes_keyword_match_and_exp_distance_without_changing_rank
 
     assert response.status_code == 200
     results = response.json()["results"]
-    assert [r["position"] for r in results] == baseline_positions
+    # Backend Developer (Python, exp_dist 1) and DevOps Engineer (DevOps, exp_dist
+    # 3) both match a declared keyword, so both outrank the non-matching QA
+    # Engineer regardless of rerank_score; within the matching tier, the closer
+    # exp_distance (Backend Developer) sorts first.
+    assert [r["position"] for r in results] == [
+        "Backend Developer",
+        "DevOps Engineer",
+        "QA Engineer",
+    ]
 
     by_position = {r["position"]: r for r in results}
     assert by_position["Backend Developer"]["keyword_match"] is True
@@ -159,13 +161,7 @@ def test_recommend_computes_keyword_match_and_exp_distance_without_changing_rank
     assert by_position["DevOps Engineer"]["exp_distance"] == 3  # 1y -> 5y
 
 
-def test_recommend_with_only_exp_years_computes_exp_distance_and_leaves_keyword_match_false(client):
-    baseline = client.post(
-        "/recommend",
-        files={"file": ("cv.txt", CANDIDATE_PROFILE.encode("utf-8"), "text/plain")},
-    )
-    baseline_positions = [r["position"] for r in baseline.json()["results"]]
-
+def test_recommend_with_only_exp_years_tiers_by_exp_distance_ascending(client):
     response = client.post(
         "/recommend",
         files={"file": ("cv.txt", CANDIDATE_PROFILE.encode("utf-8"), "text/plain")},
@@ -174,7 +170,14 @@ def test_recommend_with_only_exp_years_computes_exp_distance_and_leaves_keyword_
 
     assert response.status_code == 200
     results = response.json()["results"]
-    assert [r["position"] for r in results] == baseline_positions
+    # No keywords declared, so keyword_match is False (a no-op tier) for every
+    # job; ranking falls back to exp_distance alone: QA (0) < Backend (1) <
+    # DevOps (3), overriding the rerank_score-only baseline order.
+    assert [r["position"] for r in results] == [
+        "QA Engineer",
+        "Backend Developer",
+        "DevOps Engineer",
+    ]
 
     by_position = {r["position"]: r for r in results}
     assert by_position["Backend Developer"]["exp_distance"] == 1  # 1y -> 2y
@@ -182,13 +185,7 @@ def test_recommend_with_only_exp_years_computes_exp_distance_and_leaves_keyword_
         assert result["keyword_match"] is False
 
 
-def test_recommend_with_only_keywords_computes_keyword_match_and_leaves_exp_distance_none(client):
-    baseline = client.post(
-        "/recommend",
-        files={"file": ("cv.txt", CANDIDATE_PROFILE.encode("utf-8"), "text/plain")},
-    )
-    baseline_positions = [r["position"] for r in baseline.json()["results"]]
-
+def test_recommend_with_only_keywords_tiers_matches_before_non_matches(client):
     response = client.post(
         "/recommend",
         files={"file": ("cv.txt", CANDIDATE_PROFILE.encode("utf-8"), "text/plain")},
@@ -197,13 +194,16 @@ def test_recommend_with_only_keywords_computes_keyword_match_and_leaves_exp_dist
 
     assert response.status_code == 200
     results = response.json()["results"]
-    assert [r["position"] for r in results] == baseline_positions
 
     by_position = {r["position"]: r for r in results}
     assert by_position["Backend Developer"]["keyword_match"] is True
     assert by_position["QA Engineer"]["keyword_match"] is False
     for result in results:
         assert result["exp_distance"] is None
+
+    # Backend Developer is the only keyword match, so it leads regardless of
+    # how the non-matching jobs compare to each other by rerank_score.
+    assert results[0]["position"] == "Backend Developer"
 
 
 def test_recommend_rejects_exp_years_outside_controlled_vocabulary(client):
@@ -250,3 +250,68 @@ def test_health_returns_liveness_status(client):
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+LARGE_FIXTURE_CANDIDATE_PROFILE = "Jane Doe\nJunior Python Developer with 1 year of experience."
+
+
+def make_large_fixture_state() -> AppState:
+    """11 Jobs: 10 filler Jobs outscore a Job that only fits on declared signals.
+
+    `Perfect Fit Engineer` has the lowest rerank_score of all 11 -- pure
+    rerank_score ordering truncates it out of the top 10 entirely -- but it's
+    the candidate's only keyword/exp_years match. Used to prove tiering runs
+    over the full pre-truncation shortlist, not just the naive top 10.
+    """
+    n_jobs = 11
+    embeddings = np.eye(n_jobs, dtype=np.float32)
+    index = faiss.IndexFlatIP(n_jobs)
+    index.add(embeddings)
+
+    positions = [f"Filler {i}" for i in range(10)] + ["Perfect Fit Engineer"]
+    job_texts = [f"{position} job description." for position in positions]
+    metadata = pd.DataFrame(
+        {
+            "id": [f"job-{i}" for i in range(n_jobs)],
+            "position": positions,
+            "company": [f"Company {i}" for i in range(n_jobs)],
+            "exp_years": ["5y"] * 10 + ["1y"],
+            "keyword": ["SQL"] * 10 + ["Python"],
+            "job_text": job_texts,
+        }
+    )
+
+    bi_encoder = FakeBiEncoder({LARGE_FIXTURE_CANDIDATE_PROFILE: embeddings[0]})
+    scores_by_job_text = {job_texts[i]: 1.00 - 0.05 * i for i in range(10)}
+    scores_by_job_text[job_texts[10]] = 0.50
+    cross_encoder = FakeCrossEncoderModel(scores_by_job_text)
+
+    return AppState(
+        search_index=JobSearchIndex(index),
+        metadata=metadata,
+        bi_encoder=bi_encoder,
+        cross_encoder=cross_encoder,
+    )
+
+
+def test_recommend_tiers_the_full_shortlist_before_truncating_to_top_10():
+    app = create_app(state_factory=make_large_fixture_state)
+    with TestClient(app) as large_client:
+        response = large_client.post(
+            "/recommend",
+            files={
+                "file": (
+                    "cv.txt",
+                    LARGE_FIXTURE_CANDIDATE_PROFILE.encode("utf-8"),
+                    "text/plain",
+                )
+            },
+            data={"exp_years": "1y", "keywords": ["Python"]},
+        )
+
+    assert response.status_code == 200
+    positions = [r["position"] for r in response.json()["results"]]
+
+    assert len(positions) == 10
+    assert positions[0] == "Perfect Fit Engineer"
+    assert "Filler 9" not in positions

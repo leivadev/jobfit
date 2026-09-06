@@ -1,7 +1,14 @@
 import numpy as np
 import pytest
 
-from backend.domain.rerank import TOP_K, RerankResult, ShortlistItem, rerank
+from backend.domain.rerank import (
+    TOP_K,
+    RerankResult,
+    ShortlistItem,
+    TieredJob,
+    rerank,
+    tier_by_fit,
+)
 
 
 class FakeCrossEncoderModel:
@@ -96,3 +103,72 @@ def test_rerank_returns_fewer_than_top_k_when_shortlist_is_smaller():
     results = rerank("candidate profile", shortlist, model)
 
     assert len(results) == 4
+
+
+def test_tier_by_fit_puts_keyword_matches_before_non_matches():
+    jobs = [
+        TieredJob(job_row=0, rerank_score=0.1, keyword_match=False, exp_distance=None),
+        TieredJob(job_row=1, rerank_score=0.9, keyword_match=False, exp_distance=None),
+        TieredJob(job_row=2, rerank_score=0.5, keyword_match=True, exp_distance=None),
+    ]
+
+    ranked = tier_by_fit(jobs)
+
+    assert [job.job_row for job in ranked] == [2, 1, 0]
+
+
+def test_tier_by_fit_orders_exp_distance_ascending_within_a_keyword_tier():
+    jobs = [
+        TieredJob(job_row=0, rerank_score=0.9, keyword_match=False, exp_distance=3),
+        TieredJob(job_row=1, rerank_score=0.1, keyword_match=False, exp_distance=0),
+        TieredJob(job_row=2, rerank_score=0.5, keyword_match=False, exp_distance=1),
+    ]
+
+    ranked = tier_by_fit(jobs)
+
+    assert [job.job_row for job in ranked] == [1, 2, 0]
+
+
+def test_tier_by_fit_breaks_ties_with_rerank_score_descending():
+    jobs = [
+        TieredJob(job_row=0, rerank_score=0.2, keyword_match=True, exp_distance=1),
+        TieredJob(job_row=1, rerank_score=0.8, keyword_match=True, exp_distance=1),
+    ]
+
+    ranked = tier_by_fit(jobs)
+
+    assert [job.job_row for job in ranked] == [1, 0]
+
+
+def test_tier_by_fit_sorts_none_exp_distance_after_known_distances_within_a_tier():
+    jobs = [
+        TieredJob(job_row=0, rerank_score=0.9, keyword_match=False, exp_distance=None),
+        TieredJob(job_row=1, rerank_score=0.1, keyword_match=False, exp_distance=4),
+    ]
+
+    ranked = tier_by_fit(jobs)
+
+    assert [job.job_row for job in ranked] == [1, 0]
+
+
+def test_tier_by_fit_preserves_rerank_score_order_when_neither_signal_was_declared():
+    jobs = [
+        TieredJob(job_row=0, rerank_score=0.9, keyword_match=False, exp_distance=None),
+        TieredJob(job_row=1, rerank_score=0.5, keyword_match=False, exp_distance=None),
+        TieredJob(job_row=2, rerank_score=0.7, keyword_match=False, exp_distance=None),
+    ]
+
+    ranked = tier_by_fit(jobs)
+
+    assert [job.job_row for job in ranked] == [0, 2, 1]
+
+
+def test_tier_by_fit_surfaces_a_lower_rerank_score_matching_tier_job_over_a_mismatched_top_scorer():
+    jobs = [
+        TieredJob(job_row=0, rerank_score=0.95, keyword_match=False, exp_distance=4),
+        TieredJob(job_row=1, rerank_score=0.10, keyword_match=True, exp_distance=0),
+    ]
+
+    ranked = tier_by_fit(jobs)
+
+    assert [job.job_row for job in ranked] == [1, 0]
