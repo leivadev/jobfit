@@ -39,6 +39,7 @@ def extract_text(
     `content` is read entirely in memory (io.BytesIO) and never written to
     disk, per ADR-0001 / the privacy requirement. Format is resolved by
     `_detect_format`; MIME type takes precedence over filename extension.
+    Pure: `content` is only ever read from, never mutated.
     """
     format_ = _detect_format(filename, mime_type)
 
@@ -50,6 +51,7 @@ def extract_text(
 
 
 def _detect_format(filename: str | None, mime_type: str | None) -> CvFormat:
+    """Pure: no side effects, same inputs always resolve to the same format."""
     if mime_type in _MIME_TYPES:
         return _MIME_TYPES[mime_type]
 
@@ -65,6 +67,7 @@ def _detect_format(filename: str | None, mime_type: str | None) -> CvFormat:
 
 
 def _extract_pdf_text(content: bytes) -> str:
+    """Pure: `content` is only ever read from, never mutated."""
     reader = pypdf.PdfReader(io.BytesIO(content))
     pages = [page.extract_text() or "" for page in reader.pages]
     return "\n".join(pages).strip()
@@ -74,7 +77,8 @@ def _extract_docx_text(content: bytes) -> str:
     """Extract paragraph and table text, in document order.
 
     CVs commonly lay out skills/experience in tables, so `document.paragraphs`
-    alone would silently drop that content.
+    alone would silently drop that content. Pure: `content` is only ever read
+    from, never mutated.
     """
     document = Document(io.BytesIO(content))
     lines: list[str] = []
@@ -88,6 +92,7 @@ def _extract_docx_text(content: bytes) -> str:
 
 
 def _extract_plain_text(content: bytes) -> str:
+    """Pure: `content` is only ever read from, never mutated."""
     try:
         return content.decode("utf-8").strip()
     except UnicodeDecodeError as error:
