@@ -53,3 +53,5 @@ build/
 *.index
 *.parquet
 backend/artifacts/
+
+.playwright-mcp
