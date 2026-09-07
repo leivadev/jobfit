@@ -33,6 +33,7 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "poethepoet>=0.48.0",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "ruff>=0.16.6",
@@ -42,3 +43,8 @@ dev = [
 markers = [
     "integration: marks tests that hit real external services",
 ]
+
+[tool.poe.tasks]
+dev = "uvicorn backend.api.app:app --reload --env-file .env"
+lint = "ruff check ."
+test = "pytest -m \"not integration\""
