@@ -37,7 +37,10 @@ def test_settings_requires_all_fields(monkeypatch):
 def test_cors_allowed_origins_defaults_to_local_dev_frontend(monkeypatch):
     monkeypatch.delenv("CORS_ALLOWED_ORIGINS", raising=False)
 
-    assert resolve_cors_allowed_origins() == ["http://localhost:5173"]
+    assert resolve_cors_allowed_origins() == [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ]
 
 
 def test_cors_allowed_origins_reads_comma_separated_env_var(monkeypatch):

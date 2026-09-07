@@ -18,7 +18,7 @@ class CorsSettings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    cors_allowed_origins: str = "http://localhost:5173"
+    cors_allowed_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
 
 def resolve_cors_allowed_origins() -> list[str]:
