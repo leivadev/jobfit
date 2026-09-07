@@ -1,4 +1,4 @@
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -33,7 +33,7 @@ def create_app(
     origins = cors_origins if cors_origins is not None else resolve_cors_allowed_origins()
 
     @asynccontextmanager
-    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         app.state.jobfit = factory()
         yield
 
