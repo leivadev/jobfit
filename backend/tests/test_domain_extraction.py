@@ -3,7 +3,11 @@ import io
 import pytest
 from docx import Document
 
-from backend.domain.extraction import UnsupportedCvFormatError, extract_text
+from backend.domain.extraction import (
+    CvExtractionError,
+    UnsupportedCvFormatError,
+    extract_text,
+)
 
 
 def make_pdf_bytes(*page_texts: str) -> bytes:
@@ -151,8 +155,46 @@ def test_extract_text_from_plain_text_by_extension():
 def test_plain_text_raises_clear_error_for_invalid_utf8():
     content = "Jané Döe".encode("latin-1")
 
-    with pytest.raises(UnsupportedCvFormatError):
+    with pytest.raises(CvExtractionError):
         extract_text(content, mime_type="text/plain")
+
+
+def test_pdf_raises_extraction_error_for_empty_text():
+    content = make_pdf_bytes("")
+
+    with pytest.raises(CvExtractionError):
+        extract_text(content, mime_type="application/pdf")
+
+
+def test_pdf_raises_extraction_error_for_whitespace_only_text():
+    content = make_pdf_bytes("   ")
+
+    with pytest.raises(CvExtractionError):
+        extract_text(content, mime_type="application/pdf")
+
+
+def test_docx_raises_extraction_error_for_empty_text():
+    content = make_docx_bytes([])
+
+    with pytest.raises(CvExtractionError):
+        extract_text(content, filename="cv.docx")
+
+
+def test_docx_raises_extraction_error_for_whitespace_only_text():
+    content = make_docx_bytes(["   ", ""])
+
+    with pytest.raises(CvExtractionError):
+        extract_text(content, filename="cv.docx")
+
+
+def test_plain_text_raises_extraction_error_for_empty_content():
+    with pytest.raises(CvExtractionError):
+        extract_text(b"", mime_type="text/plain")
+
+
+def test_plain_text_raises_extraction_error_for_whitespace_only_content():
+    with pytest.raises(CvExtractionError):
+        extract_text(b"   \n\t  ", mime_type="text/plain")
 
 
 def test_mime_type_takes_precedence_over_extension():

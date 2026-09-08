@@ -238,6 +238,16 @@ def test_recommend_rejects_unsupported_cv_format(client):
     assert "detail" in response.json()
 
 
+def test_recommend_rejects_cv_with_no_extractable_text(client):
+    response = client.post(
+        "/recommend",
+        files={"file": ("cv.txt", b"   \n\t  ", "text/plain")},
+    )
+
+    assert response.status_code == 400
+    assert "detail" in response.json()
+
+
 def test_recommend_requires_a_file(client):
     response = client.post("/recommend")
 

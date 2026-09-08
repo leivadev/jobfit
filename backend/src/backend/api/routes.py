@@ -6,7 +6,11 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from backend.api.schemas import Recommendation, RecommendResponse
 from backend.api.snippets import build_snippet
 from backend.api.state import AppState
-from backend.domain.extraction import UnsupportedCvFormatError, extract_text
+from backend.domain.extraction import (
+    CvExtractionError,
+    UnsupportedCvFormatError,
+    extract_text,
+)
 from backend.domain.matching import (
     CandidateSignals,
     InvalidCandidateSignalError,
@@ -43,7 +47,7 @@ async def recommend(
 
     try:
         candidate_profile = extract_text(content, filename=file.filename, mime_type=file.content_type)
-    except UnsupportedCvFormatError as error:
+    except (UnsupportedCvFormatError, CvExtractionError) as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
 
     query_vector = state.bi_encoder.encode([candidate_profile])[0]
