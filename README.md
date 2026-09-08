@@ -46,7 +46,7 @@ The offline pipeline and the online service are decoupled: the pipeline runs onc
 | Reranking | Cross-encoder (`cross-encoder/ms-marco-MiniLM-L-6-v2` or similar) | Improves precision over the top-100 |
 | Vector search | FAISS (`IndexFlatIP`, in-memory) | Sufficient for 10-20k vectors |
 | Backend | FastAPI | Async, typed, automatic OpenAPI |
-| Resume extraction | `pypdf`/`pdfplumber`, `python-docx` | PDF and DOCX coverage |
+| Resume extraction | `pypdf`, `python-docx` | PDF and DOCX coverage |
 | Dependency manager (backend) | `uv` | Fast, lockfile, single binary |
 | Frontend | React + Vite + Tailwind | Standard, quick to build for a single screen |
 | Dependency manager (frontend) | `pnpm` | Efficient, integrates well with the Wrangler ecosystem |
