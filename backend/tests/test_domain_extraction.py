@@ -247,6 +247,20 @@ def test_falls_back_to_extension_when_mime_type_unrecognized():
     assert text == "Jane Doe"
 
 
+def test_pdf_raises_extraction_error_for_corrupted_content():
+    content = b"not a real pdf"
+
+    with pytest.raises(CvExtractionError):
+        extract_text(content, mime_type="application/pdf")
+
+
+def test_docx_raises_extraction_error_for_corrupted_content():
+    content = b"not a real docx"
+
+    with pytest.raises(CvExtractionError):
+        extract_text(content, filename="cv.docx")
+
+
 def test_raises_for_unsupported_format():
     content = b"whatever"
 

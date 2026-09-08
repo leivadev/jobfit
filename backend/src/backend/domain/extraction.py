@@ -1,4 +1,5 @@
 import io
+import zipfile
 from enum import Enum, auto
 
 import pypdf
@@ -77,11 +78,18 @@ def _detect_format(filename: str | None, mime_type: str | None) -> CvFormat:
 
 def _extract_pdf_text(content: bytes) -> str:
     """Pure: `content` is only ever read from, never mutated."""
-    reader = pypdf.PdfReader(io.BytesIO(content))
-    if reader.is_encrypted and reader.decrypt("") == pypdf.PasswordType.NOT_DECRYPTED:
-        raise CvExtractionError("CV PDF is password-protected")
-    pages = [page.extract_text() or "" for page in reader.pages]
-    return "\n".join(pages).strip()
+    try:
+        reader = pypdf.PdfReader(io.BytesIO(content))
+        if reader.is_encrypted and reader.decrypt("") == pypdf.PasswordType.NOT_DECRYPTED:
+            raise CvExtractionError("CV PDF is password-protected")
+        pages = [page.extract_text() or "" for page in reader.pages]
+        return "\n".join(pages).strip()
+    except CvExtractionError:
+        raise
+    except pypdf.errors.PdfReadError as error:
+        raise CvExtractionError("CV PDF is corrupted or malformed") from error
+    except Exception as error:
+        raise CvExtractionError("CV PDF could not be read") from error
 
 
 def _extract_docx_text(content: bytes) -> str:
@@ -91,15 +99,20 @@ def _extract_docx_text(content: bytes) -> str:
     alone would silently drop that content. Pure: `content` is only ever read
     from, never mutated.
     """
-    document = Document(io.BytesIO(content))
-    lines: list[str] = []
-    for item in document.iter_inner_content():
-        if isinstance(item, Paragraph):
-            lines.append(item.text)
-        elif isinstance(item, Table):
-            for row in item.rows:
-                lines.append("\t".join(cell.text for cell in row.cells))
-    return "\n".join(lines).strip()
+    try:
+        document = Document(io.BytesIO(content))
+        lines: list[str] = []
+        for item in document.iter_inner_content():
+            if isinstance(item, Paragraph):
+                lines.append(item.text)
+            elif isinstance(item, Table):
+                for row in item.rows:
+                    lines.append("\t".join(cell.text for cell in row.cells))
+        return "\n".join(lines).strip()
+    except (zipfile.BadZipFile, KeyError) as error:
+        raise CvExtractionError("CV DOCX is corrupted or malformed") from error
+    except Exception as error:
+        raise CvExtractionError("CV DOCX could not be read") from error
 
 
 def _extract_plain_text(content: bytes) -> str:
