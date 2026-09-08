@@ -1,5 +1,6 @@
 import io
 
+import pypdf
 import pytest
 from docx import Document
 
@@ -61,6 +62,18 @@ def make_pdf_bytes(*page_texts: str) -> bytes:
     return buf.getvalue()
 
 
+def make_encrypted_pdf_bytes(
+    *page_texts: str, user_password: str, owner_password: str | None = None
+) -> bytes:
+    """Encrypt a hand-crafted PDF with the given user/owner passwords."""
+    reader = pypdf.PdfReader(io.BytesIO(make_pdf_bytes(*page_texts)))
+    writer = pypdf.PdfWriter(clone_from=reader)
+    writer.encrypt(user_password=user_password, owner_password=owner_password)
+    buf = io.BytesIO()
+    writer.write(buf)
+    return buf.getvalue()
+
+
 def make_docx_bytes(paragraphs: list[str], table_rows: list[list[str]] | None = None) -> bytes:
     document = Document()
     for paragraph in paragraphs:
@@ -98,6 +111,25 @@ def test_pdf_joins_multiple_pages_with_newline():
 
     lines = [line for line in text.splitlines() if line.strip()]
     assert lines == ["Page One", "Page Two"]
+
+
+def test_pdf_with_owner_password_only_extracts_successfully():
+    content = make_encrypted_pdf_bytes(
+        "Jane Doe, Backend Engineer", user_password="", owner_password="secret"
+    )
+
+    text = extract_text(content, mime_type="application/pdf")
+
+    assert "Jane Doe, Backend Engineer" in text
+
+
+def test_pdf_with_real_user_password_raises_password_protected_error():
+    content = make_encrypted_pdf_bytes(
+        "Jane Doe, Backend Engineer", user_password="letmein"
+    )
+
+    with pytest.raises(CvExtractionError):
+        extract_text(content, mime_type="application/pdf")
 
 
 def test_extract_text_from_docx_by_mime_type():

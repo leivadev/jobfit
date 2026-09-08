@@ -78,6 +78,8 @@ def _detect_format(filename: str | None, mime_type: str | None) -> CvFormat:
 def _extract_pdf_text(content: bytes) -> str:
     """Pure: `content` is only ever read from, never mutated."""
     reader = pypdf.PdfReader(io.BytesIO(content))
+    if reader.is_encrypted and reader.decrypt("") == pypdf.PasswordType.NOT_DECRYPTED:
+        raise CvExtractionError("CV PDF is password-protected")
     pages = [page.extract_text() or "" for page in reader.pages]
     return "\n".join(pages).strip()
 
