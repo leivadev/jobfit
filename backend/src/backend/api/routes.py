@@ -1,6 +1,8 @@
+import time
 from typing import Annotated
 
 import pandas as pd
+import structlog
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
 from backend.api.rate_limit import RECOMMEND_RATE_LIMIT, limiter
@@ -23,6 +25,7 @@ from backend.domain.matching import (
 from backend.domain.rerank import TOP_K, ShortlistItem, TieredJob, rerank, tier_by_fit
 
 router = APIRouter()
+logger = structlog.get_logger()
 
 
 @router.get("/health")
@@ -40,51 +43,68 @@ async def recommend(
     keywords: Annotated[list[str] | None, Form()] = None,
 ) -> RecommendResponse:
     state: AppState = request.app.state.jobfit
-    candidate_signals = CandidateSignals(exp_years=exp_years, keywords=keywords)
+    started_at = time.perf_counter()
+    file_size_bytes: int | None = None
+    errored = False
     try:
-        validate_candidate_signals(candidate_signals)
-    except InvalidCandidateSignalError as error:
-        raise HTTPException(status_code=400, detail=str(error)) from error
+        candidate_signals = CandidateSignals(exp_years=exp_years, keywords=keywords)
+        try:
+            validate_candidate_signals(candidate_signals)
+        except InvalidCandidateSignalError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
 
-    try:
-        detect_format(filename=file.filename, mime_type=file.content_type)
-    except UnsupportedCvFormatError as error:
-        raise HTTPException(status_code=400, detail=str(error)) from error
+        try:
+            detect_format(filename=file.filename, mime_type=file.content_type)
+        except UnsupportedCvFormatError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
 
-    content = await file.read()
+        content = await file.read()
+        file_size_bytes = len(content)
 
-    try:
-        candidate_profile = extract_text(content, filename=file.filename, mime_type=file.content_type)
-    except (UnsupportedCvFormatError, CvExtractionError) as error:
-        raise HTTPException(status_code=400, detail=str(error)) from error
+        try:
+            candidate_profile = extract_text(content, filename=file.filename, mime_type=file.content_type)
+        except (UnsupportedCvFormatError, CvExtractionError) as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
 
-    query_vector = state.bi_encoder.encode([candidate_profile])[0]
-    search_results = state.search_index.search(query_vector)
+        query_vector = state.bi_encoder.encode([candidate_profile])[0]
+        search_results = state.search_index.search(query_vector)
 
-    shortlist = [
-        ShortlistItem(job_row=result.job_row, job_text=state.metadata.iloc[result.job_row]["job_text"])
-        for result in search_results
-    ]
-    # Score the whole shortlist, not just the top 10: tiering below must see
-    # every scored Job so it can surface a same-tier Job that raw rerank_score
-    # alone had ranked outside the top 10.
-    rerank_results = rerank(candidate_profile, shortlist, state.cross_encoder, top_k=len(shortlist))
+        shortlist = [
+            ShortlistItem(job_row=result.job_row, job_text=state.metadata.iloc[result.job_row]["job_text"])
+            for result in search_results
+        ]
+        # Score the whole shortlist, not just the top 10: tiering below must see
+        # every scored Job so it can surface a same-tier Job that raw rerank_score
+        # alone had ranked outside the top 10.
+        rerank_results = rerank(candidate_profile, shortlist, state.cross_encoder, top_k=len(shortlist))
 
-    tiered_jobs = []
-    for result in rerank_results:
-        row = state.metadata.iloc[result.job_row]
-        tiered_jobs.append(
-            TieredJob(
-                job_row=result.job_row,
-                rerank_score=result.rerank_score,
-                keyword_match=keyword_match(candidate_signals.keywords, row["keyword"]),
-                exp_distance=exp_distance(candidate_signals.exp_years, row["exp_years"]),
+        tiered_jobs = []
+        for result in rerank_results:
+            row = state.metadata.iloc[result.job_row]
+            tiered_jobs.append(
+                TieredJob(
+                    job_row=result.job_row,
+                    rerank_score=result.rerank_score,
+                    keyword_match=keyword_match(candidate_signals.keywords, row["keyword"]),
+                    exp_distance=exp_distance(candidate_signals.exp_years, row["exp_years"]),
+                )
             )
-        )
-    ranked_jobs = tier_by_fit(tiered_jobs)[:TOP_K]
+        ranked_jobs = tier_by_fit(tiered_jobs)[:TOP_K]
 
-    results = [_to_recommendation(job, state.metadata) for job in ranked_jobs]
-    return RecommendResponse(results=results)
+        results = [_to_recommendation(job, state.metadata) for job in ranked_jobs]
+        return RecommendResponse(results=results)
+    except Exception:
+        errored = True
+        raise
+    finally:
+        # Aggregate metrics only -- never `content`/`candidate_profile`, per
+        # the CV-privacy guarantee (see tests/test_api_recommend_privacy.py).
+        logger.info(
+            "recommend_request",
+            file_size_bytes=file_size_bytes,
+            duration_ms=round((time.perf_counter() - started_at) * 1000, 2),
+            error=errored,
+        )
 
 
 def _to_recommendation(job: TieredJob, metadata: pd.DataFrame) -> Recommendation:

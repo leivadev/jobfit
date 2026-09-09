@@ -1,6 +1,7 @@
 from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 
+import starlette.formparsers
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
@@ -13,8 +14,14 @@ from backend.api.routes import router
 from backend.api.state import AppState, build_state
 from backend.api.upload_limits import MAX_UPLOAD_SIZE_BYTES
 from backend.config import Settings, resolve_cors_allowed_origins
+from backend.logging import configure_logging
 
 StateFactory = Callable[[], AppState]
+
+# Once per process, not per `create_app()` call: re-`configure()`-ing would
+# swap the processors list object, orphaning routes.py's already-cached
+# logger (and breaking `capture_logs`'s in-place mutation of it in tests).
+configure_logging()
 
 
 def create_app(
@@ -37,6 +44,12 @@ def create_app(
     """
     factory = state_factory or (lambda: build_state(Settings()))  # type: ignore[call-arg]
     origins = cors_origins if cors_origins is not None else resolve_cors_allowed_origins()
+    # Starlette spools each uploaded file part through a SpooledTemporaryFile
+    # capped at 1 MB by default; past that it rolls over to a real OS temp
+    # file during multipart parsing, before our own size check ever runs. Raise
+    # the cap to the accepted upload size so no CV within that limit ever
+    # touches disk.
+    starlette.formparsers.MultiPartParser.spool_max_size = MAX_UPLOAD_SIZE_BYTES
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
