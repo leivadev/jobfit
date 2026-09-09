@@ -3,6 +3,7 @@ from typing import Annotated
 import pandas as pd
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
+from backend.api.rate_limit import RECOMMEND_RATE_LIMIT, limiter
 from backend.api.schemas import Recommendation, RecommendResponse
 from backend.api.snippets import build_snippet
 from backend.api.state import AppState
@@ -30,6 +31,7 @@ def health() -> dict[str, str]:
 
 
 @router.post("/recommend", response_model=RecommendResponse)
+@limiter.limit(RECOMMEND_RATE_LIMIT)
 async def recommend(
     request: Request,
     file: Annotated[UploadFile, File()],

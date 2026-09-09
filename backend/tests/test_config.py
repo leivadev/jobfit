@@ -1,7 +1,12 @@
 import pytest
 from pydantic import ValidationError
+from slowapi.util import get_remote_address
 
-from backend.config import Settings, resolve_cors_allowed_origins
+from backend.config import (
+    Settings,
+    resolve_cors_allowed_origins,
+    resolve_rate_limit_key_func,
+)
 
 
 def test_settings_loads_from_env(monkeypatch):
@@ -53,3 +58,16 @@ def test_cors_allowed_origins_reads_comma_separated_env_var(monkeypatch):
         "https://jobfit-app.leivadev.com",
         "http://localhost:5173",
     ]
+
+
+def test_rate_limit_key_func_defaults_to_remote_address(monkeypatch):
+    monkeypatch.delenv("RATE_LIMIT_KEY_STRATEGY", raising=False)
+
+    assert resolve_rate_limit_key_func() is get_remote_address
+
+
+def test_rate_limit_key_func_rejects_unknown_strategy(monkeypatch):
+    monkeypatch.setenv("RATE_LIMIT_KEY_STRATEGY", "forwarded_header")
+
+    with pytest.raises(ValueError, match="forwarded_header"):
+        resolve_rate_limit_key_func()

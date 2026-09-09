@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend.api.app import create_app
+from backend.api.rate_limit import RECOMMEND_RATE_LIMIT_PER_MINUTE
 from backend.api.state import AppState
 from backend.domain.search import JobSearchIndex
 
@@ -260,6 +261,27 @@ def test_health_returns_liveness_status(client):
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_recommend_returns_429_on_the_fourth_request_within_a_minute(client):
+    for _ in range(RECOMMEND_RATE_LIMIT_PER_MINUTE):
+        response = client.post(
+            "/recommend",
+            files={"file": ("cv.txt", CANDIDATE_PROFILE.encode("utf-8"), "text/plain")},
+        )
+        assert response.status_code == 200
+
+    fourth_response = client.post(
+        "/recommend",
+        files={"file": ("cv.txt", CANDIDATE_PROFILE.encode("utf-8"), "text/plain")},
+    )
+    assert fourth_response.status_code == 429
+
+
+def test_health_is_not_rate_limited(client):
+    for _ in range(5):
+        response = client.get("/health")
+        assert response.status_code == 200
 
 
 LARGE_FIXTURE_CANDIDATE_PROFILE = "Jane Doe\nJunior Python Developer with 1 year of experience."

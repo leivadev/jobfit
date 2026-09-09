@@ -3,7 +3,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIASGIMiddleware
 
+from backend.api.rate_limit import limiter
 from backend.api.routes import router
 from backend.api.state import AppState, build_state
 from backend.config import Settings, resolve_cors_allowed_origins
@@ -38,6 +42,13 @@ def create_app(
         yield
 
     app = FastAPI(lifespan=lifespan)
+    app.state.limiter = limiter
+    # limiter is a module-level singleton (routes.py decorates with it at
+    # import time); reset so each app instance -- notably each test's --
+    # starts with a clean counter.
+    limiter.reset()
+    app.add_middleware(SlowAPIASGIMiddleware)
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
