@@ -43,10 +43,10 @@ def extract_text(
 
     `content` is read entirely in memory (io.BytesIO) and never written to
     disk, per ADR-0001 / the privacy requirement. Format is resolved by
-    `_detect_format`; MIME type takes precedence over filename extension.
+    `detect_format`; MIME type takes precedence over filename extension.
     Pure: `content` is only ever read from, never mutated.
     """
-    format_ = _detect_format(filename, mime_type)
+    format_ = detect_format(filename, mime_type)
 
     if format_ is CvFormat.PDF:
         text = _extract_pdf_text(content)
@@ -60,8 +60,12 @@ def extract_text(
     return text
 
 
-def _detect_format(filename: str | None, mime_type: str | None) -> CvFormat:
-    """Pure: no side effects, same inputs always resolve to the same format."""
+def detect_format(filename: str | None, mime_type: str | None) -> CvFormat:
+    """Public so the API layer can reject an unsupported/undetectable format
+    before reading the upload body, reusing this instead of a second,
+    parallel MIME check. Pure: no side effects, same inputs always resolve to
+    the same format.
+    """
     if mime_type in _MIME_TYPES:
         return _MIME_TYPES[mime_type]
 

@@ -6,10 +6,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIASGIMiddleware
+from starlette.middleware.body_limit import RequestBodyLimitMiddleware
 
 from backend.api.rate_limit import limiter
 from backend.api.routes import router
 from backend.api.state import AppState, build_state
+from backend.api.upload_limits import MAX_UPLOAD_SIZE_BYTES
 from backend.config import Settings, resolve_cors_allowed_origins
 
 StateFactory = Callable[[], AppState]
@@ -54,6 +56,9 @@ def create_app(
         allow_origins=origins,
         allow_methods=["GET", "POST"],
     )
+    # Added last so it's outermost: an oversized request is rejected before
+    # CORS/rate-limit processing, not just before CV-extraction domain logic.
+    app.add_middleware(RequestBodyLimitMiddleware, max_body_size=MAX_UPLOAD_SIZE_BYTES)
     app.include_router(router)
     return app
 

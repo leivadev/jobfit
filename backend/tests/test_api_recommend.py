@@ -1,4 +1,5 @@
 import faiss
+import httpx
 import numpy as np
 import pandas as pd
 import pytest
@@ -7,6 +8,7 @@ from fastapi.testclient import TestClient
 from backend.api.app import create_app
 from backend.api.rate_limit import RECOMMEND_RATE_LIMIT_PER_MINUTE
 from backend.api.state import AppState
+from backend.api.upload_limits import MAX_UPLOAD_SIZE_BYTES
 from backend.domain.search import JobSearchIndex
 
 CANDIDATE_PROFILE = "Jane Doe\nBackend Python Developer with 4 years experience."
@@ -237,6 +239,46 @@ def test_recommend_rejects_unsupported_cv_format(client):
 
     assert response.status_code == 400
     assert "detail" in response.json()
+
+
+def test_recommend_rejects_file_over_size_limit_with_413(client):
+    # Rejected on declared Content-Length before the body is read at all, so
+    # the content itself never needs to be a real CV.
+    oversized_content = b"a" * (MAX_UPLOAD_SIZE_BYTES + 1)
+
+    response = client.post(
+        "/recommend",
+        files={"file": ("cv.txt", oversized_content, "text/plain")},
+    )
+
+    assert response.status_code == 413
+
+
+def test_recommend_caps_bytes_read_when_content_length_is_not_declared(client):
+    # Built via a raw httpx.Request/chunked generator rather than `files=`,
+    # so the client sends Transfer-Encoding: chunked with no Content-Length
+    # header -- exercising the fallback byte-count cap during the read,
+    # rather than the declared-length precheck the other 413 test covers.
+    oversized_content = b"a" * (MAX_UPLOAD_SIZE_BYTES + 1)
+    prepared = httpx.Request(
+        "POST",
+        "http://testserver/recommend",
+        files={"file": ("cv.bin", oversized_content, "application/octet-stream")},
+    )
+    multipart_body = b"".join(prepared.stream)
+
+    def chunked_body():
+        chunk_size = 65536
+        for offset in range(0, len(multipart_body), chunk_size):
+            yield multipart_body[offset : offset + chunk_size]
+
+    response = client.post(
+        "/recommend",
+        content=chunked_body(),
+        headers={"content-type": prepared.headers["content-type"]},
+    )
+
+    assert response.status_code == 413
 
 
 def test_recommend_rejects_cv_with_no_extractable_text(client):

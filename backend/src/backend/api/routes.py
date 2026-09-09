@@ -10,6 +10,7 @@ from backend.api.state import AppState
 from backend.domain.extraction import (
     CvExtractionError,
     UnsupportedCvFormatError,
+    detect_format,
     extract_text,
 )
 from backend.domain.matching import (
@@ -43,6 +44,11 @@ async def recommend(
     try:
         validate_candidate_signals(candidate_signals)
     except InvalidCandidateSignalError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    try:
+        detect_format(filename=file.filename, mime_type=file.content_type)
+    except UnsupportedCvFormatError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
 
     content = await file.read()
