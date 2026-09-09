@@ -97,8 +97,6 @@ async def recommend(
         errored = True
         raise
     finally:
-        # Aggregate metrics only -- never `content`/`candidate_profile`, per
-        # the CV-privacy guarantee (see tests/test_api_recommend_privacy.py).
         logger.info(
             "recommend_request",
             file_size_bytes=file_size_bytes,

@@ -4,9 +4,6 @@ import structlog
 
 
 def configure_logging() -> None:
-    """JSON structured logs to stdout. Callers must only log aggregate
-    request metrics (see `backend.api.routes.recommend`) -- never CV content.
-    """
     structlog.configure(
         processors=[
             structlog.processors.add_log_level,
