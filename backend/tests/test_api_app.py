@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend.api.app import create_app
+from backend.api.usage_guardrail import UsageGuardrailMiddleware
 
 
 def test_import_disables_joblib_multiprocessing():
@@ -67,3 +68,23 @@ def test_cors_rejects_unconfigured_origin():
         )
 
     assert "access-control-allow-origin" not in response.headers
+
+
+def _has_usage_guardrail(app) -> bool:
+    return any(m.cls is UsageGuardrailMiddleware for m in app.user_middleware)
+
+
+def test_usage_guardrail_disabled_by_default(monkeypatch):
+    monkeypatch.delenv("USAGE_GUARDRAIL_ENABLED", raising=False)
+
+    app = create_app(state_factory=lambda: None)
+
+    assert not _has_usage_guardrail(app)
+
+
+def test_usage_guardrail_enabled_via_env(monkeypatch):
+    monkeypatch.setenv("USAGE_GUARDRAIL_ENABLED", "true")
+
+    app = create_app(state_factory=lambda: None)
+
+    assert _has_usage_guardrail(app)

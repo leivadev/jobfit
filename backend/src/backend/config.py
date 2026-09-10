@@ -58,3 +58,33 @@ def resolve_rate_limit_key_func() -> Callable[[Request], str]:
             f"Unknown RATE_LIMIT_KEY_STRATEGY {strategy!r}; valid options: "
             f"{sorted(RATE_LIMIT_KEY_FUNCS)}"
         ) from None
+
+
+class UsageGuardrailSettings(BaseSettings):
+    """Split from `Settings`: mirrors `CorsSettings`/`RateLimitSettings` — no
+    required fields, so building it never requires R2 config to be present.
+
+    Defaults are Azure Container Apps' perpetual free grant (see
+    `docs/design/phase-6-infra-provisioning.md`): 180k vCPU-sec + 360k
+    GiB-sec + 2M requests/mo.
+    """
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    usage_guardrail_enabled: bool = False
+    usage_guardrail_request_limit: int = 2_000_000
+    usage_guardrail_vcpu_seconds_limit: float = 180_000
+    usage_guardrail_gib_seconds_limit: float = 360_000
+    # Trip before the exact limit, leaving buffer ahead of the Azure Monitor
+    # budget alert (the real backstop, provisioned in Phase 6).
+    usage_guardrail_threshold_ratio: float = 0.9
+    # Azure Container Apps Consumption plan's per-replica minimum allocation.
+    usage_guardrail_vcpu_allocation: float = 0.5
+    usage_guardrail_gib_allocation: float = 1.0
+
+
+def resolve_usage_guardrail_settings() -> UsageGuardrailSettings:
+    """Single owned construction point, mirroring `resolve_cors_allowed_origins`
+    and `resolve_rate_limit_key_func` — callers never instantiate
+    `UsageGuardrailSettings` directly."""
+    return UsageGuardrailSettings()

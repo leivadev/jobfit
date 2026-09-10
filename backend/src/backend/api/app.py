@@ -25,7 +25,11 @@ from backend.api.rate_limit import limiter
 from backend.api.routes import router
 from backend.api.state import AppState, build_state
 from backend.api.upload_limits import MAX_UPLOAD_SIZE_BYTES
-from backend.config import Settings, resolve_cors_allowed_origins
+from backend.config import (
+    Settings,
+    resolve_cors_allowed_origins,
+    resolve_usage_guardrail_settings,
+)
 from backend.logging import configure_logging
 
 StateFactory = Callable[[], AppState]
@@ -76,6 +80,16 @@ def create_app(
     limiter.reset()
     app.add_middleware(SlowAPIASGIMiddleware)
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    # Opt-in (disabled unless USAGE_GUARDRAIL_ENABLED): imported lazily so
+    # nothing outside usage_guardrail.py depends on it while disabled --
+    # deleting that one file is enough to remove the feature entirely.
+    # Added before CORS so CORS still wraps its 503 responses with the
+    # right headers.
+    guardrail_settings = resolve_usage_guardrail_settings()
+    if guardrail_settings.usage_guardrail_enabled:
+        from backend.api.usage_guardrail import UsageGuardrailMiddleware
+
+        app.add_middleware(UsageGuardrailMiddleware, settings=guardrail_settings)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,

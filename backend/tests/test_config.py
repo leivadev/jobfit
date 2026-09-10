@@ -4,6 +4,7 @@ from slowapi.util import get_remote_address
 
 from backend.config import (
     Settings,
+    UsageGuardrailSettings,
     resolve_cors_allowed_origins,
     resolve_rate_limit_key_func,
 )
@@ -71,3 +72,20 @@ def test_rate_limit_key_func_rejects_unknown_strategy(monkeypatch):
 
     with pytest.raises(ValueError, match="forwarded_header"):
         resolve_rate_limit_key_func()
+
+
+def test_usage_guardrail_defaults_to_disabled_with_azure_free_grant_thresholds(monkeypatch):
+    monkeypatch.delenv("USAGE_GUARDRAIL_ENABLED", raising=False)
+
+    settings = UsageGuardrailSettings(_env_file=None)
+
+    assert settings.usage_guardrail_enabled is False
+    assert settings.usage_guardrail_request_limit == 2_000_000
+    assert settings.usage_guardrail_vcpu_seconds_limit == 180_000
+    assert settings.usage_guardrail_gib_seconds_limit == 360_000
+
+
+def test_usage_guardrail_enabled_via_env(monkeypatch):
+    monkeypatch.setenv("USAGE_GUARDRAIL_ENABLED", "true")
+
+    assert UsageGuardrailSettings().usage_guardrail_enabled is True
