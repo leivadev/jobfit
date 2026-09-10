@@ -1,7 +1,28 @@
+import subprocess
+import sys
+
 import pytest
 from fastapi.testclient import TestClient
 
 from backend.api.app import create_app
+
+
+def test_import_disables_joblib_multiprocessing():
+    """See #34 and the rationale comment atop app.py. Run in a subprocess
+    because joblib decides this once, at its own import time -- a fresh
+    interpreter is the only way to check it actually landed before joblib
+    was first imported, same as how uvicorn loads this module."""
+    script = (
+        "import backend.api.app\n"
+        "import joblib._multiprocessing_helpers as h\n"
+        "assert h.mp is None, h.mp\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        check=False,
+        capture_output=True,
+    )
+    assert result.returncode == 0, result.stderr.decode()
 
 
 def test_startup_failure_propagates_instead_of_serving():

@@ -1,3 +1,15 @@
+import os
+
+# Must run before sentence-transformers/scikit-learn (imported transitively
+# below) first import joblib: joblib latches this at import time to decide
+# whether joblib.Parallel may ever fork loky worker processes. #34 reports
+# uvicorn --reload's watcher thread racing such a fork and deadlocking the
+# child forever; no joblib.Parallel call site was confirmed in this repo's
+# /recommend path, so this is a defensive categorical mitigation (no fork
+# mechanism at all, anywhere in this process) rather than a fix targeted at
+# a confirmed culprit.
+os.environ.setdefault("JOBLIB_MULTIPROCESSING", "0")
+
 from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 
