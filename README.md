@@ -21,7 +21,7 @@ flowchart TD
         META[("jobs_metadata\n.parquet")]
     end
 
-    subgraph Backend["Backend · Railway / Fly.io · jobfit-api.leivadev.com"]
+    subgraph Backend["Backend · Azure Container Apps · jobfit-api.leivadev.com"]
         direction LR
         EX["Text\nextraction"] --> EMB["Resume\nembedding"] --> SEARCH["FAISS\nsearch"] --> RERANK["Cross-encoder\nrerank"]
     end
@@ -50,7 +50,7 @@ The offline pipeline and the online service are decoupled: the pipeline runs onc
 | Dependency manager (backend) | `uv` | Fast, lockfile, single binary |
 | Frontend | React + Vite + Tailwind | Standard, quick to build for a single screen |
 | Dependency manager (frontend) | `pnpm` | Efficient, integrates well with the Wrangler ecosystem |
-| Backend deployment | Railway or Fly.io | Supports heavy ML dependencies (torch, faiss) |
+| Backend deployment | Azure Container Apps | CPU-only workload, scale-to-zero, perpetual free grant covers demo traffic |
 | Frontend deployment | Cloudflare Workers (Static Assets) | Free tier, same ecosystem as R2 |
 | Artifact storage | Cloudflare R2 | Zero egress fees, S3-compatible |
 
