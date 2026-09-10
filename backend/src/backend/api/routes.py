@@ -46,6 +46,10 @@ async def recommend(
     started_at = time.perf_counter()
     file_size_bytes: int | None = None
     errored = False
+
+    def elapsed_ms() -> float:
+        return round((time.perf_counter() - started_at) * 1000, 2)
+
     try:
         candidate_signals = CandidateSignals(exp_years=exp_years, keywords=keywords)
         try:
@@ -93,14 +97,24 @@ async def recommend(
 
         results = [_to_recommendation(job, state.metadata) for job in ranked_jobs]
         return RecommendResponse(results=results)
-    except Exception:
+    except HTTPException:
         errored = True
+        raise
+    except Exception as error:
+        errored = True
+        logger.exception(
+            "recommend_unexpected_error",
+            exc_type=type(error).__name__,
+            exc_message=str(error),
+            file_size_bytes=file_size_bytes,
+            duration_ms=elapsed_ms(),
+        )
         raise
     finally:
         logger.info(
             "recommend_request",
             file_size_bytes=file_size_bytes,
-            duration_ms=round((time.perf_counter() - started_at) * 1000, 2),
+            duration_ms=elapsed_ms(),
             error=errored,
         )
 
