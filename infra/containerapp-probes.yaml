@@ -1,0 +1,31 @@
+# Source of truth for the `probes` field, patched into the live Container
+# App spec by backend-deploy.yml (which reads the current spec via
+# `az containerapp show` and only overwrites `.probes`, so this file can't
+# affect the image, env vars, or secrets).
+#
+# `name` must match the container name inside the app's revision template
+# (defaults to the app name, jobfit-backend, unless overridden at
+# provisioning time in Phase 6 — confirm with `az containerapp show
+# --name jobfit-backend -o yaml` once the app exists).
+properties:
+  template:
+    containers:
+      - name: jobfit-backend
+        probes:
+          # Generous: covers the R2 Artifact fetch during a scale-to-zero
+          # cold start. Liveness/readiness stay disabled until this passes.
+          - type: Startup
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 30
+          # Tight: steady-state check once startup has already succeeded.
+          - type: Liveness
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
