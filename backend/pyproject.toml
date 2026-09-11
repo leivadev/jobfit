@@ -21,6 +21,9 @@ dependencies = [
     "sentence-transformers>=6.0.1",
     "slowapi>=0.1.10",
     "structlog>=26.1.0",
+    # Direct (not just transitive via sentence-transformers): tool.uv.sources
+    # below only overrides the index for packages listed here.
+    "torch>=2.2",
     "uvicorn[standard]>=0.52.4",
 ]
 
@@ -43,6 +46,16 @@ dev = [
 markers = [
     "integration: marks tests that hit real external services",
 ]
+
+[tool.uv.sources]
+# CPU-only wheels: backend is CPU-only (faiss-cpu, no GPU), and PyPI's default
+# linux torch wheel drags in the full CUDA toolkit (~2GB of nvidia-* deps).
+torch = [{ index = "pytorch-cpu" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [tool.poe.tasks]
 dev = "uvicorn backend.api.app:app --reload --env-file .env"
