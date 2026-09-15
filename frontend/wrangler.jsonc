@@ -11,5 +11,12 @@
 			"pattern": "jobfit-app.leivadev.com",
 			"custom_domain": true
 		}
-	]
+	],
+  "observability": {
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true,
+      "persist": true
+    }
+  },
 }
