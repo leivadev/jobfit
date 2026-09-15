@@ -6,6 +6,7 @@ on:
     paths:
       - "backend/**"
       - "infra/containerapp-probes.yaml"
+  workflow_dispatch: {}
 
 permissions:
   id-token: write
@@ -24,13 +25,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Azure login (OIDC)
-        uses: azure/login@v3
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -46,12 +40,19 @@ jobs:
         with:
           context: backend
           push: true
-          tags: ghcr.io/leivadev/jobfit-backend:${{ github.sha }}
+          tags: |
+            ghcr.io/leivadev/jobfit-backend:${{ github.sha }}
+            ghcr.io/leivadev/jobfit-backend:latest
           secrets: |
             hf_token=${{ secrets.HF_TOKEN }}
 
-      # Flag-based update only ever touches the image field, so this step
-      # cannot read or modify the app's existing Container Apps secrets.
+      - name: Azure login (OIDC)
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
       - name: Deploy image
         run: |
           az containerapp update \
@@ -59,8 +60,6 @@ jobs:
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --image ghcr.io/leivadev/jobfit-backend:${{ github.sha }}
 
-      # Patch only `.probes` into the live spec (merge semantics of a bare
-      # `--yaml` update aren't documented, so read-modify-write instead).
       - name: Configure health probes
         run: |
           az containerapp show \
