@@ -14,7 +14,7 @@ def make_index(n=5, dim=8, seed=0):
     return index, embeddings
 
 
-def test_search_returns_top_100_by_default():
+def test_search_returns_top_k_by_default():
     index, embeddings = make_index(n=150)
     search_index = JobSearchIndex(index)
 

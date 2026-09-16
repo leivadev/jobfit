@@ -8,7 +8,7 @@ See `CONTEXT.md` for term definitions (Job, CV, Candidate Profile, Similarity Sc
   - `exp_years`: single value, one of the 5 buckets on the ordered scale `no_exp`, `1y`, `2y`, `3y`, `5y` (same vocabulary as Job Metadata's `exp_years`).
   - `keywords`: zero or more values, each one of the 18-value controlled vocabulary used by Job Metadata's `keyword` (`.NET`, `Android`, `C++`, `Data Analyst`, `Data Engineer`, `Data Science`, `DevOps`, `Golang`, `Java`, `JavaScript`, `Node.js`, `PHP`, `Python`, `QA`, `QA Automation`, `Ruby`, `SQL`, `iOS`).
   - Both fields are independently optional; a request with neither behaves exactly as if they didn't exist. A value outside either controlled vocabulary is rejected with 400.
-- **Process**: extract text from the CV → build a Candidate Profile → embed it with the Bi-encoder → retrieve the top-100 Jobs from the Job Index by Similarity Score → rerank with the Cross-encoder → return the top-10 as Recommendations. `exp_years`/`keywords` do not affect ranking (see the "Recommendation" ticket for that) — they only annotate the response.
+- **Process**: extract text from the CV → build a Candidate Profile → embed it with the Bi-encoder → retrieve the top-20 Jobs from the Job Index by Similarity Score → rerank with the Cross-encoder → return the top-10 as Recommendations. `exp_years`/`keywords` do not affect ranking (see the "Recommendation" ticket for that) — they only annotate the response.
 - **Output**: a ranked list of Recommendations.
 
 ### Response contract

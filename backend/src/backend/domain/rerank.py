@@ -26,7 +26,7 @@ class CrossEncoderModel(Protocol):
 class CrossEncoder:
     """`ms-marco-MiniLM-L6-v2` Cross-encoder that scores (Candidate Profile, Job) pairs.
 
-    Scores the top-100 shortlist from `search.py`; too slow to run over the
+    Scores the top-20 shortlist from `search.py`; too slow to run over the
     whole Job Index (see CONTEXT.md's Cross-encoder definition).
     """
 

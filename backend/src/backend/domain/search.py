@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import faiss
 import numpy as np
 
-TOP_K = 100
+TOP_K = 20  # cross-encoder rerank cost scales ~linearly with this; 100 measured ~11s/request on CPU
 
 
 @dataclass(frozen=True)

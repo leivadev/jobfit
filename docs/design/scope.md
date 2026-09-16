@@ -4,7 +4,7 @@
 
 - Anonymous CV upload (PDF, DOCX, or plain text).
 - Text extraction, embedding, Job Index search for the top-N most similar Jobs.
-- Cross-encoder rerank of the Bi-encoder's top-100 to improve precision.
+- Cross-encoder rerank of the Bi-encoder's top-20 to improve precision.
 - Simple frontend: upload CV, view ranked Recommendations with score and snippet.
 - Public deployment, no login required.
 - Offline quantitative evaluation against the real-CV dataset (Precision@k, Recall@k, MRR) — see `docs/design/evaluation.md`.
