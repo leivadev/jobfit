@@ -9,6 +9,12 @@ Not a decision yet — the MVP ships with `sentence-transformers/all-MiniLM-L6-v
 - **ESCOXLM-R**: Based on XLM-R with domain-adaptive pretraining on the ESCO taxonomy (skills, competencies, occupations), multilingual (27 languages), with an additional training objective for inducing taxonomic relations.
 - **ConFit / ConFit v2**: Not downloadable pretrained models — a contrastive learning method for fine-tuning an encoder on CV-Job pairs, with data augmentation (v1) and hard-negative mining + LLM-generated hypothetical summaries (v2). ConFit v2 reports +13.8% recall and +17.5% nDCG over ConFit v1, BM25, and OpenAI's `text-embedding-003`. This is the approach already referenced in `docs/design/scope.md` as "ConFit-style".
 
+### Possible data source for a ConFit-style fine-tune
+
+`lang-uk/recruitment-dataset-candidate-profiles-english` (currently used only for offline evaluation, see `docs/design/evaluation.md`) shares a `Primary Keyword` field with the jobs dataset used for the production corpus (`lang-uk/recruitment-dataset-job-descriptions-english`, see `backend/app/dataset.py`). Both are sourced from Djinni, same domain. That overlap could supply weak-supervision positive pairs (CV ↔ Job with matching `Primary Keyword`/`Position`) for a ConFit-style contrastive fine-tune, instead of only using the candidate-profiles dataset for eval.
+
+Caveat: matching keyword ≠ true relevance (weak supervision, not ground truth) — any resulting model would need to clear the existing baseline on the Phase 8 metrics (P@10/R@10/MRR) before replacing `all-MiniLM-L6-v2`, otherwise the extra training/versioning complexity isn't worth it.
+
 ## Reading for the pending decision
 
 CareerBERT is the most direct drop-in replacement for `all-MiniLM-L6-v2` (already fine-tuned and published, no training required). ConFit v2 is the best-reported-performance path, but requires fine-tuning our own model with contrastive learning on the Djinni dataset — more effort, but consistent with what's already noted as a possible v2 approach.
