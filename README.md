@@ -43,7 +43,7 @@ The offline pipeline and the online service are decoupled: the pipeline runs onc
 | Component | Choice | Reason |
 | --- | --- | --- |
 | Embeddings | `sentence-transformers/all-MiniLM-L6-v2` | Fast, lightweight, good baseline |
-| Reranking | Cross-encoder (`cross-encoder/ms-marco-MiniLM-L-6-v2` or similar) | Improves precision over the top-100 |
+| Reranking | Cross-encoder (`cross-encoder/ms-marco-MiniLM-L-6-v2` or similar) | Improves precision over the top-20 |
 | Vector search | FAISS (`IndexFlatIP`, in-memory) | Sufficient for 10-20k vectors |
 | Backend | FastAPI | Async, typed, automatic OpenAPI |
 | Resume extraction | `pypdf`, `python-docx` | PDF and DOCX coverage |
@@ -109,7 +109,34 @@ See [`docs/design/api-contract.md`](docs/design/api-contract.md) for the full `/
 
 ## Evaluation
 
-Offline metrics (Precision@10, Recall@10, MRR) on the real resume dataset, comparing bi-encoder only vs. bi-encoder + cross-encoder rerank. Full methodology in [`docs/design/evaluation.md`](docs/design/evaluation.md); results documented here once Phase 8 of the plan is implemented.
+Offline metrics comparing bi-encoder only vs. bi-encoder + cross-encoder rerank, on the real resume dataset. Full methodology in [`docs/design/evaluation.md`](docs/design/evaluation.md).
+
+| metric | definition |
+| --- | --- |
+| Precision@10 | Fraction of the top 10 returned jobs that are relevant |
+| MRR@10 | 1 / rank of the first relevant job in the top 10 (0 if none) |
+| NDCG@10 | Precision@10, weighted so relevant jobs ranked higher count more |
+| MAP@10 | Average precision at each relevant job's rank, within the top 10 |
+| HitRate@10 | 1 if any relevant job appears in the top 10, else 0 |
+
+**~1% of the candidate dataset** (N=1,280, automated weak label = shared `Primary Keyword`, `scripts/evaluate_scale.py`):
+
+| metric | baseline | rerank | delta |
+| --- | --- | --- | --- |
+| Precision@10 | 0.649 | 0.664 | +0.015 |
+| MRR@10 | 0.746 | 0.766 | +0.019 |
+| NDCG@10 | 0.650 | 0.669 | +0.018 |
+| MAP@10 | 0.565 | 0.586 | +0.022 |
+| HitRate@10 | 0.920 | 0.920 | +0.000 |
+
+Reranking improves most metrics over the bi-encoder baseline alone, at a real latency cost (`scripts/measure_latency.py`, CPU, matching the production deployment):
+
+| stage | mean | p95 |
+| --- | --- | --- |
+| bi-encoder only | 67ms | 136ms |
+| bi-encoder + cross-encoder rerank | 2099ms | 2375ms |
+
+The cross-encoder is the whole cost: +2s/request for a 1.5-3% quality gain. The shortlist reranked was shrunk from 100 to 20 jobs specifically to bring this down from an initial ~11s/request to something tolerable for a synchronous request.
 
 ## Project status
 
