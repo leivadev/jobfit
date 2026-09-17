@@ -1,7 +1,8 @@
-export type ErrorVariant = 'rate-limit' | 'generic';
+export type ErrorVariant = 'rate-limit' | 'timeout' | 'generic';
 
 const MESSAGES: Record<ErrorVariant, string> = {
   'rate-limit': 'Too many requests, try again in a minute.',
+  timeout: 'The server is taking longer than usual to start up. Please try again in a moment.',
   generic: 'Something went wrong, try again.',
 };
 

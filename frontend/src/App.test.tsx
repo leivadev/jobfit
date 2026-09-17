@@ -2,7 +2,13 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import App from './App';
-import { RateLimitError, RecommendError, type Recommendation, type RecommendResponse } from './api/client';
+import {
+  RateLimitError,
+  RecommendError,
+  ServerStartupTimeoutError,
+  type Recommendation,
+  type RecommendResponse,
+} from './api/client';
 
 function makeRecommendation(overrides: Partial<Recommendation> = {}): Recommendation {
   return {
@@ -110,6 +116,16 @@ describe('App happy path', () => {
     await user.click(screen.getByRole('button', { name: /recommend jobs/i }));
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/something went wrong/i));
+  });
+
+  it('shows a distinct message when the server never becomes healthy', async () => {
+    const fakeRecommend = vi.fn().mockRejectedValueOnce(new ServerStartupTimeoutError());
+    render(<App recommend={fakeRecommend} />);
+
+    const user = await selectFile(makeCvFile());
+    await user.click(screen.getByRole('button', { name: /recommend jobs/i }));
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/taking longer than usual/i));
   });
 
   it('rejects an oversized file before ever calling recommend', async () => {

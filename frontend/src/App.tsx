@@ -1,5 +1,13 @@
 import { useState, type FormEvent } from 'react';
-import { recommend as defaultRecommend, RateLimitError, type Recommendation, type RecommendOptions, type RecommendResponse } from './api/client';
+import {
+  recommend as defaultRecommend,
+  RateLimitError,
+  ServerStartupTimeoutError,
+  type Recommendation,
+  type RecommendOptions,
+  type RecommendResponse,
+  type RecommendStage,
+} from './api/client';
 import { Dropzone } from './components/Dropzone';
 import { EmptyState } from './components/EmptyState';
 import { ErrorBanner, type ErrorVariant } from './components/ErrorBanner';
@@ -7,9 +15,16 @@ import { PrivacyNotice } from './components/PrivacyNotice';
 import { RecommendButton } from './components/RecommendButton';
 import { RecommendationList } from './components/RecommendationList';
 
+const LOADING_TEXT: Record<RecommendStage, string> = {
+  checking: 'Checking server status…',
+  waking: 'Waking up the server, this can take up to a minute…',
+  processing: 'Finding recommendations…',
+  slow: 'Still finding recommendations, reranking can take a few extra seconds…',
+};
+
 type ViewState =
   | { kind: 'idle' }
-  | { kind: 'loading' }
+  | { kind: 'loading'; stage: RecommendStage }
   | { kind: 'recommendations'; recommendations: Recommendation[] }
   | { kind: 'empty' }
   | { kind: 'error'; variant: ErrorVariant };
@@ -28,16 +43,24 @@ function App({ recommend = defaultRecommend }: AppProps) {
       return;
     }
 
-    setView({ kind: 'loading' });
+    setView({ kind: 'loading', stage: 'checking' });
     try {
-      const response = await recommend(selectedFile);
+      const response = await recommend(selectedFile, {
+        onStage: (stage) => setView({ kind: 'loading', stage }),
+      });
       setView(
         response.results.length === 0
           ? { kind: 'empty' }
           : { kind: 'recommendations', recommendations: response.results },
       );
     } catch (error) {
-      setView({ kind: 'error', variant: error instanceof RateLimitError ? 'rate-limit' : 'generic' });
+      let variant: ErrorVariant = 'generic';
+      if (error instanceof RateLimitError) {
+        variant = 'rate-limit';
+      } else if (error instanceof ServerStartupTimeoutError) {
+        variant = 'timeout';
+      }
+      setView({ kind: 'error', variant });
     }
   }
 
@@ -47,7 +70,10 @@ function App({ recommend = defaultRecommend }: AppProps) {
       <PrivacyNotice />
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <Dropzone selectedFile={selectedFile} onSelectFile={setSelectedFile} onClear={() => setSelectedFile(null)} />
-        <RecommendButton disabled={!selectedFile} loading={view.kind === 'loading'} />
+        <RecommendButton
+          disabled={!selectedFile}
+          loadingText={view.kind === 'loading' ? LOADING_TEXT[view.stage] : null}
+        />
       </form>
       <div>
         {view.kind === 'recommendations' && <RecommendationList recommendations={view.recommendations} />}

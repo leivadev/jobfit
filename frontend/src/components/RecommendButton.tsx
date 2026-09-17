@@ -1,9 +1,10 @@
 interface RecommendButtonProps {
   disabled: boolean;
-  loading: boolean;
+  loadingText: string | null;
 }
 
-export function RecommendButton({ disabled, loading }: RecommendButtonProps) {
+export function RecommendButton({ disabled, loadingText }: RecommendButtonProps) {
+  const loading = loadingText !== null;
   return (
     <button
       type="submit"
@@ -17,7 +18,7 @@ export function RecommendButton({ disabled, loading }: RecommendButtonProps) {
           className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
         />
       )}
-      {loading ? 'Finding recommendations…' : 'Recommend jobs'}
+      {loading ? loadingText : 'Recommend jobs'}
     </button>
   );
 }
