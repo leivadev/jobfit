@@ -4,7 +4,7 @@
 
 A visitor uploads their resume and receives the most relevant IT job postings, using **semantic embeddings** over a real job listings dataset. Portfolio project focused on embeddings, vector search, and reranking, combined with software engineering (backend, frontend, deployment, user data privacy).
 
-**Status**: the offline pipeline (Phase 1) is implemented; the backend API and frontend are not yet built. This README documents the agreed-upon architecture for the parts not yet implemented.
+**Status**: all 9 phases (offline pipeline, backend API, frontend, CV extraction, privacy/rate limiting, infra, deployment, evaluation) are implemented and deployed. Live at [jobfit-app.leivadev.com](https://jobfit-app.leivadev.com) (backend: `jobfit-api.leivadev.com`).
 
 ## Architecture
 
@@ -23,7 +23,7 @@ flowchart TD
 
     subgraph Backend["Backend · Azure Container Apps · jobfit-api.leivadev.com"]
         direction LR
-        EX["Text\nextraction"] --> EMB["Resume\nembedding"] --> SEARCH["FAISS\nsearch"] --> RERANK["Cross-encoder\nrerank"]
+        EX["Text\nextraction"] --> EMB["Resume\nembedding"] --> SEARCH["FAISS\nsearch"] --> RERANK["Cross-encoder\nrerank"] --> TIER["Tier by\nkeyword/exp fit"]
     end
 
     FE["Frontend SPA\nReact + Vite\nCloudflare Workers\njobfit-app.leivadev.com"]
@@ -43,10 +43,12 @@ The offline pipeline and the online service are decoupled: the pipeline runs onc
 | Component | Choice | Reason |
 | --- | --- | --- |
 | Embeddings | `sentence-transformers/all-MiniLM-L6-v2` | Fast, lightweight, good baseline |
-| Reranking | Cross-encoder (`cross-encoder/ms-marco-MiniLM-L-6-v2` or similar) | Improves precision over the top-20 |
+| Reranking | `cross-encoder/ms-marco-MiniLM-L6-v2` | Improves precision over the top-20 |
 | Vector search | FAISS (`IndexFlatIP`, in-memory) | Sufficient for 10-20k vectors |
 | Backend | FastAPI | Async, typed, automatic OpenAPI |
 | Resume extraction | `pypdf`, `python-docx` | PDF and DOCX coverage |
+| Rate limiting | `slowapi` | Per-IP, moving-window, no external store needed |
+| Logging | `structlog` | Structured logs without CV content |
 | Dependency manager (backend) | `uv` | Fast, lockfile, single binary |
 | Frontend | React + Vite + Tailwind | Standard, quick to build for a single screen |
 | Dependency manager (frontend) | `pnpm` | Efficient, integrates well with the Wrangler ecosystem |
@@ -56,7 +58,7 @@ The offline pipeline and the online service are decoupled: the pipeline runs onc
 
 ## Data
 
-- **Job postings**: [`lang-uk/recruitment-dataset-job-descriptions-english`](https://huggingface.co/datasets/lang-uk/recruitment-dataset-job-descriptions-english) (~142k IT postings, Djinni platform, 2020-2023, MIT). Filtered to the most represented `Primary Keyword` categories (QA, DevOps, iOS/Android, Data, main languages), deduplicated — see `docs/design/phase-1-offline-pipeline.md`.
+- **Job postings**: [`lang-uk/recruitment-dataset-job-descriptions-english`](https://huggingface.co/datasets/lang-uk/recruitment-dataset-job-descriptions-english) (~142k IT postings, Djinni platform, 2020-2023, MIT). Filtered to the most represented `Primary Keyword` categories (QA, DevOps, iOS/Android, Data, main languages), deduplicated.
 - **Offline evaluation**: [`lang-uk/recruitment-dataset-candidate-profiles-english`](https://huggingface.co/datasets/lang-uk/recruitment-dataset-candidate-profiles-english) (~230k anonymized resumes), never exposed in production.
 
 ## Repo structure
@@ -64,11 +66,13 @@ The offline pipeline and the online service are decoupled: the pipeline runs onc
 ```
 jobfit/
 ├── backend/            # FastAPI + offline pipeline (uv)
-│   ├── src/backend/      # installable package: config, API, domain (extraction, embeddings, search, rerank)
+│   ├── src/backend/      # installable package: config, API, domain (extraction, embeddings, search, rerank, matching)
 │   ├── app/              # offline pipeline: dataset, text, embeddings, index, storage
-│   ├── scripts/          # build_index.py (offline batch pipeline)
+│   ├── scripts/          # build_index.py, evaluate.py, evaluate_scale.py, measure_latency.py
 │   └── tests/
 ├── frontend/            # React + Vite, deployed on Cloudflare Workers
+├── infra/               # Azure Container Apps probe config
+├── .github/workflows/   # backend CI + deploy to Azure Container Apps
 ├── docs/
 │   ├── adr/              # Architecture Decision Records
 │   ├── design/           # API contract, scope, evaluation, frontend
@@ -93,6 +97,8 @@ uv run ruff check .
 cd frontend
 pnpm install
 pnpm dev
+pnpm test       # unit (vitest)
+pnpm test:e2e   # end-to-end (playwright)
 ```
 
 ## Privacy
@@ -101,7 +107,7 @@ Anyone can upload their real resume to a public demo. To ensure privacy:
 
 - The resume is processed **in memory**, never written to disk or persisted.
 - Resume content is not logged, only aggregate metrics (size, processing time, errors).
-- Rate limiting on the public endpoint, file size limit, and MIME type validation.
+- Rate limiting on `/recommend` (3 requests/min per IP), a 5 MB file size limit, and MIME type validation.
 
 ## API
 
@@ -115,8 +121,10 @@ Offline metrics comparing bi-encoder only vs. bi-encoder + cross-encoder rerank,
 | --- | --- |
 | Precision@10 | Fraction of the top 10 returned jobs that are relevant |
 | MRR@10 | 1 / rank of the first relevant job in the top 10 (0 if none) |
+| MRR@20 | Same as MRR@10, over the top 20 |
 | NDCG@10 | Precision@10, weighted so relevant jobs ranked higher count more |
 | MAP@10 | Average precision at each relevant job's rank, within the top 10 |
+| MAP@20 | Same as MAP@10, over the top 20 |
 | HitRate@10 | 1 if any relevant job appears in the top 10, else 0 |
 
 **~1% of the candidate dataset** (N=1,280, automated weak label = shared `Primary Keyword`, `scripts/evaluate_scale.py`):
@@ -125,8 +133,10 @@ Offline metrics comparing bi-encoder only vs. bi-encoder + cross-encoder rerank,
 | --- | --- | --- | --- |
 | Precision@10 | 0.649 | 0.664 | +0.015 |
 | MRR@10 | 0.746 | 0.766 | +0.019 |
+| MRR@20 | 0.748 | 0.768 | +0.019 |
 | NDCG@10 | 0.650 | 0.669 | +0.018 |
 | MAP@10 | 0.565 | 0.586 | +0.022 |
+| MAP@20 | 0.543 | 0.552 | +0.009 |
 | HitRate@10 | 0.920 | 0.920 | +0.000 |
 
 Reranking improves most metrics over the bi-encoder baseline alone, at a real latency cost (`scripts/measure_latency.py`, CPU, matching the production deployment):
@@ -140,7 +150,7 @@ The cross-encoder is the whole cost: +2s/request for a 1.5-3% quality gain. The 
 
 ## Project status
 
-See `docs/adr/` for architecture decisions already made and their rationale. The full plan (phases, scope, open decisions) is managed outside this repo as a design document; this README is updated as each phase is implemented.
+All 9 planned phases are done: offline pipeline, backend `/recommend` + `/health`, frontend, robust CV extraction, privacy/rate limiting, infra provisioning, backend + frontend deployment, quantitative evaluation. See `docs/adr/` for architecture decisions and their rationale.
 
 ## License
 
