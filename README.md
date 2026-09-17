@@ -99,6 +99,7 @@ pnpm install
 pnpm dev
 pnpm test       # unit (vitest)
 pnpm test:e2e   # end-to-end (playwright)
+pnpm deploy     # build + wrangler deploy (requires Cloudflare auth)
 ```
 
 ## Privacy
