@@ -23,6 +23,8 @@ class FakeBiEncoder:
     def encode(self, texts: list[str]) -> np.ndarray:
         return np.stack([self._vectors_by_text[text] for text in texts])
 
+    encode_query = encode
+
 
 class FakeCrossEncoderModel:
     """Synthetic Cross-encoder: returns a fixed score per pair, keyed by job text."""

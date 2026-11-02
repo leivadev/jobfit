@@ -21,36 +21,14 @@ from text import build_job_text, clean_text
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 from backend.config import Settings
+from backend.domain.matching import KEYWORD_VOCABULARY
 
 ARTIFACTS_DIR = Path(__file__).parent.parent / "artifacts"
-
-# Verified against the real dataset's 45 Primary Keyword values; excludes
-# long-tail values and single-row mislabeled outliers (see phase-1 design doc).
-KEYWORDS = [
-    "QA",
-    "QA Automation",
-    "DevOps",
-    "iOS",
-    "Android",
-    "Data Analyst",
-    "Data Engineer",
-    "Data Science",
-    "JavaScript",
-    ".NET",
-    "Java",
-    "Node.js",
-    "PHP",
-    "Python",
-    "C++",
-    "Ruby",
-    "Golang",
-    "SQL",
-]
 
 
 def build_metadata(df: pd.DataFrame) -> pd.DataFrame:
     """Filter, dedup, and shape raw dataset rows into the Job Metadata Artifact schema."""
-    filtered = filter_jobs(df, KEYWORDS)
+    filtered = filter_jobs(df, sorted(KEYWORD_VOCABULARY))
     deduped = deduplicate_jobs(filtered)
 
     job_text = [

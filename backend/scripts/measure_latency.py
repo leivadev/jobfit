@@ -80,7 +80,7 @@ def main() -> None:
         candidate_profile = row["CV"]
 
         t0 = time.perf_counter()
-        query_vector = bi_encoder.encode([candidate_profile])[0]
+        query_vector = bi_encoder.encode_query([candidate_profile])[0]
         t1 = time.perf_counter()
 
         search_index.search(query_vector, top_k=CUTOFF)

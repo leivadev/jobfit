@@ -12,7 +12,7 @@ def test_recommend_unexpected_failure_logs_error_entry_with_exception_info(monke
     def broken_encode(texts):
         raise RuntimeError("bi-encoder exploded")
 
-    monkeypatch.setattr(state.bi_encoder, "encode", broken_encode)
+    monkeypatch.setattr(state.bi_encoder, "encode_query", broken_encode)
 
     app = create_app(state_factory=lambda: state)
     # Runs the real `format_exc_info` processor (wired in `configure_logging`)

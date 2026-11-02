@@ -15,27 +15,9 @@ def test_exp_years_scale_is_the_five_ordered_buckets():
     assert EXP_YEARS_SCALE == ["no_exp", "1y", "2y", "3y", "5y"]
 
 
-def test_keywords_is_the_eighteen_value_controlled_vocabulary():
-    assert KEYWORD_VOCABULARY == {
-        ".NET",
-        "Android",
-        "C++",
-        "Data Analyst",
-        "Data Engineer",
-        "Data Science",
-        "DevOps",
-        "Golang",
-        "Java",
-        "JavaScript",
-        "Node.js",
-        "PHP",
-        "Python",
-        "QA",
-        "QA Automation",
-        "Ruby",
-        "SQL",
-        "iOS",
-    }
+def test_keywords_is_the_full_forty_five_value_controlled_vocabulary():
+    assert len(KEYWORD_VOCABULARY) == 45
+    assert {"Design", "Product Manager", "Marketing", "Other", "JavaScript"} <= KEYWORD_VOCABULARY
 
 
 def test_exp_distance_is_none_when_candidate_did_not_declare_exp_years():
