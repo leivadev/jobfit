@@ -34,11 +34,11 @@ BGE_QUERY = "Represent this sentence for searching relevant passages: "
 # native context are capped at 512 to fit the 4 GB GPU, so their long-context advantage is
 # NOT exercised here.
 BI_MODELS = {
-    "minilm": dict(name="sentence-transformers/all-MiniLM-L6-v2", chunk=256, q="", d="", remote=False),
-    "bge-small": dict(name="BAAI/bge-small-en-v1.5", chunk=480, q=BGE_QUERY, d="", remote=False),
-    "bge-base": dict(name="BAAI/bge-base-en-v1.5", chunk=480, q=BGE_QUERY, d="", remote=False),
-    "gte-base": dict(name="Alibaba-NLP/gte-base-en-v1.5", chunk=480, q="", d="", remote=True),
-    "nomic": dict(name="nomic-ai/nomic-embed-text-v1.5", chunk=480, q="search_query: ", d="search_document: ", remote=True),
+    "minilm": {"name": "sentence-transformers/all-MiniLM-L6-v2", "chunk": 256, "q": "", "d": "", "remote": False},
+    "bge-small": {"name": "BAAI/bge-small-en-v1.5", "chunk": 480, "q": BGE_QUERY, "d": "", "remote": False},
+    "bge-base": {"name": "BAAI/bge-base-en-v1.5", "chunk": 480, "q": BGE_QUERY, "d": "", "remote": False},
+    "gte-base": {"name": "Alibaba-NLP/gte-base-en-v1.5", "chunk": 480, "q": "", "d": "", "remote": True},
+    "nomic": {"name": "nomic-ai/nomic-embed-text-v1.5", "chunk": 480, "q": "search_query: ", "d": "search_document: ", "remote": True},
 }
 RERANKERS = {
     "ms-l6": "cross-encoder/ms-marco-MiniLM-L6-v2",
@@ -170,9 +170,8 @@ def evaluate() -> None:
 
 def rerank_eval(bi_key: str, n_cvs: int) -> None:
     import torch
-    from sentence_transformers import CrossEncoder
-
     from evaluate_scale import mean_metrics
+    from sentence_transformers import CrossEncoder
 
     jobs, cvs, job_ids, rel_by_kw = _load_ground_truth()
     sample = cvs.sample(n=min(n_cvs, len(cvs)), random_state=SEED)
@@ -200,7 +199,7 @@ def rerank_eval(bi_key: str, n_cvs: int) -> None:
             print(f"[{name}] done in {time.monotonic() - t0:.0f}s (GPU)")
             del model
             torch.cuda.empty_cache()
-        except Exception as error:  # report, don't hide: a model that fails to load is a finding
+        except Exception as error:  # noqa: BLE001 - report, don't hide: a model that fails to load is a finding
             print(f"[{name}] FAILED: {type(error).__name__}: {error}")
     print(f"\nbi-encoder={bi_key}, top-20 reranked, N cvs={len(kws)}\n")
     print(pd.DataFrame(results).round(3).to_string())
@@ -243,7 +242,7 @@ def cpu_bench(keys: list[str]) -> None:
                 times.append(time.monotonic() - t0)
             extra = f"rerank20_ms={1000 * np.median(times):.0f}"
         params = sum(p.numel() for p in (model.model if key in RERANKERS else model).parameters()) / 1e6
-        print(json.dumps(dict(model=key, params_M=round(params), rss_before=base, rss_loaded=loaded, rss_after=rss(), info=extra)))
+        print(json.dumps({"model": key, "params_M": round(params), "rss_before": base, "rss_loaded": loaded, "rss_after": rss(), "info": extra}))
 
 
 def main() -> None:
