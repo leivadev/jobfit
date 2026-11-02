@@ -74,7 +74,9 @@ def make_encrypted_pdf_bytes(
     return buf.getvalue()
 
 
-def make_docx_bytes(paragraphs: list[str], table_rows: list[list[str]] | None = None) -> bytes:
+def make_docx_bytes(
+    paragraphs: list[str], table_rows: list[list[str]] | None = None
+) -> bytes:
     document = Document()
     for paragraph in paragraphs:
         document.add_paragraph(paragraph)
@@ -138,8 +140,7 @@ def test_extract_text_from_docx_by_mime_type():
     text = extract_text(
         content,
         mime_type=(
-            "application/vnd.openxmlformats-officedocument"
-            ".wordprocessingml.document"
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         ),
     )
 

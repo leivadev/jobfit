@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from backend.domain.rerank import (
-    TOP_K,
+    RESPONSE_SIZE,
     RerankResult,
     ShortlistItem,
     TieredJob,
@@ -38,7 +38,7 @@ def test_rerank_returns_top_10_by_default():
 
     results = rerank("candidate profile", shortlist, model)
 
-    assert len(results) == TOP_K
+    assert len(results) == RESPONSE_SIZE
 
 
 def test_rerank_orders_by_score_descending():

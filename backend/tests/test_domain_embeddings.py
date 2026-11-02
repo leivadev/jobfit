@@ -117,7 +117,10 @@ def test_encode_output_unchanged_after_refactor(bi_encoder):
 def test_chunk_text_returns_single_chunk_under_max_tokens(bi_encoder):
     text = clean_text(REAL_DESCRIPTION)
     tokenizer = bi_encoder.model.tokenizer
-    assert len(tokenizer.encode(text, add_special_tokens=False)) < BiEncoder.MAX_CHUNK_TOKENS
+    assert (
+        len(tokenizer.encode(text, add_special_tokens=False))
+        < BiEncoder.MAX_CHUNK_TOKENS
+    )
 
     chunks = _chunk_text(text, tokenizer, max_tokens=BiEncoder.MAX_CHUNK_TOKENS)
 

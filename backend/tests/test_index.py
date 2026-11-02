@@ -55,7 +55,11 @@ def test_save_artifacts_writes_index_and_metadata(tmp_path):
             "company": ["Acme", "Globex", "Initech"],
             "exp_years": ["1-3", "3-5", "5+"],
             "keyword": ["Python", "QA", "DevOps"],
-            "job_text": ["Python Developer text", "QA Engineer text", "DevOps Engineer text"],
+            "job_text": [
+                "Python Developer text",
+                "QA Engineer text",
+                "DevOps Engineer text",
+            ],
         }
     )
     index_path = tmp_path / "jobs.index"
@@ -93,5 +97,7 @@ def test_save_artifacts_preserves_row_alignment(tmp_path):
     faiss.normalize_L2(normalized_embeddings)
 
     for i in range(4):
-        np.testing.assert_allclose(loaded_index.reconstruct(i), normalized_embeddings[i], atol=1e-6)
+        np.testing.assert_allclose(
+            loaded_index.reconstruct(i), normalized_embeddings[i], atol=1e-6
+        )
         assert loaded_metadata.iloc[i]["id"] == f"job-{i}"

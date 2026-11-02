@@ -11,7 +11,9 @@ from backend.r2 import JOBS_INDEX_KEY, JOBS_METADATA_KEY, build_r2_client
 __all__ = ["JOBS_INDEX_KEY", "JOBS_METADATA_KEY", "build_r2_client", "load_artifacts"]
 
 
-def load_artifacts(settings: Settings, client=None) -> tuple[JobSearchIndex, pd.DataFrame]:
+def load_artifacts(
+    settings: Settings, client=None
+) -> tuple[JobSearchIndex, pd.DataFrame]:
     """Download the Job Index and Job Metadata Artifacts from R2 into memory.
 
     Called once at startup (see ADR-0006). Any failure — unreachable R2,
@@ -21,7 +23,9 @@ def load_artifacts(settings: Settings, client=None) -> tuple[JobSearchIndex, pd.
     client = client or build_r2_client(settings)
 
     index_bytes = _get_object_bytes(client, settings.r2_bucket_name, JOBS_INDEX_KEY)
-    metadata_bytes = _get_object_bytes(client, settings.r2_bucket_name, JOBS_METADATA_KEY)
+    metadata_bytes = _get_object_bytes(
+        client, settings.r2_bucket_name, JOBS_METADATA_KEY
+    )
 
     index = faiss.deserialize_index(np.frombuffer(index_bytes, dtype=np.uint8))
     metadata = pd.read_parquet(io.BytesIO(metadata_bytes))

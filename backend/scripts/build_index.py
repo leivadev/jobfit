@@ -33,7 +33,9 @@ def build_metadata(df: pd.DataFrame) -> pd.DataFrame:
 
     job_text = [
         clean_text(build_job_text(position, description))
-        for position, description in zip(deduped["Position"], deduped["Long Description"])
+        for position, description in zip(
+            deduped["Position"], deduped["Long Description"]
+        )
     ]
 
     return pd.DataFrame(
@@ -73,7 +75,9 @@ def run(
     index_path.parent.mkdir(parents=True, exist_ok=True)
     save_artifacts(index, metadata, index_path, metadata_path)
 
-    print(f"[build_index] uploading artifacts to R2 bucket {settings.r2_bucket_name}...")
+    print(
+        f"[build_index] uploading artifacts to R2 bucket {settings.r2_bucket_name}..."
+    )
     client = build_r2_client(settings)
     upload_artifacts(client, settings, index_path, metadata_path)
     print("[build_index] upload complete")
@@ -86,7 +90,12 @@ def main() -> None:
     print("[build_index] loading raw dataset...")
     df = load_raw_jobs()
     print(f"[build_index] loaded {len(df)} raw rows")
-    run(df, ARTIFACTS_DIR / "jobs.index", ARTIFACTS_DIR / "jobs_metadata.parquet", settings)
+    run(
+        df,
+        ARTIFACTS_DIR / "jobs.index",
+        ARTIFACTS_DIR / "jobs_metadata.parquet",
+        settings,
+    )
     print("[build_index] done")
 
 

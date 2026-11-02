@@ -74,7 +74,9 @@ def test_rate_limit_key_func_rejects_unknown_strategy(monkeypatch):
         resolve_rate_limit_key_func()
 
 
-def test_usage_guardrail_defaults_to_disabled_with_azure_free_grant_thresholds(monkeypatch):
+def test_usage_guardrail_defaults_to_disabled_with_azure_free_grant_thresholds(
+    monkeypatch,
+):
     monkeypatch.delenv("USAGE_GUARDRAIL_ENABLED", raising=False)
 
     settings = UsageGuardrailSettings(_env_file=None)

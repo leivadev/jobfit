@@ -59,7 +59,9 @@ def create_app(
     override it to check specific origins without depending on env state.
     """
     factory = state_factory or (lambda: build_state(Settings()))  # type: ignore[call-arg]
-    origins = cors_origins if cors_origins is not None else resolve_cors_allowed_origins()
+    origins = (
+        cors_origins if cors_origins is not None else resolve_cors_allowed_origins()
+    )
     # Starlette spools each uploaded file part through a SpooledTemporaryFile
     # capped at 1 MB by default; past that it rolls over to a real OS temp
     # file during multipart parsing, before our own size check ever runs. Raise

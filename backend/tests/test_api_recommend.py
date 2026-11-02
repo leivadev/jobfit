@@ -126,7 +126,9 @@ def test_recommend_response_matches_contract_shape(client):
     assert result["rerank_score"] == pytest.approx(0.9)
 
 
-def test_recommend_without_exp_years_or_keywords_leaves_new_fields_absent_signal(client):
+def test_recommend_without_exp_years_or_keywords_leaves_new_fields_absent_signal(
+    client,
+):
     response = client.post(
         "/recommend",
         files={"file": ("cv.txt", CANDIDATE_PROFILE.encode("utf-8"), "text/plain")},
@@ -138,7 +140,9 @@ def test_recommend_without_exp_years_or_keywords_leaves_new_fields_absent_signal
         assert result["exp_distance"] is None
 
 
-def test_recommend_tiers_by_keyword_match_then_exp_distance_when_both_signals_declared(client):
+def test_recommend_tiers_by_keyword_match_then_exp_distance_when_both_signals_declared(
+    client,
+):
     response = client.post(
         "/recommend",
         files={"file": ("cv.txt", CANDIDATE_PROFILE.encode("utf-8"), "text/plain")},
@@ -328,7 +332,9 @@ def test_health_is_not_rate_limited(client):
         assert response.status_code == 200
 
 
-LARGE_FIXTURE_CANDIDATE_PROFILE = "Jane Doe\nJunior Python Developer with 1 year of experience."
+LARGE_FIXTURE_CANDIDATE_PROFILE = (
+    "Jane Doe\nJunior Python Developer with 1 year of experience."
+)
 
 
 def make_large_fixture_state() -> AppState:

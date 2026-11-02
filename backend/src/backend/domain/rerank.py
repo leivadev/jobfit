@@ -4,7 +4,7 @@ from typing import Protocol
 import numpy as np
 from sentence_transformers import CrossEncoder as _SentenceTransformersCrossEncoder
 
-TOP_K = 10
+RESPONSE_SIZE = 10
 
 
 @dataclass(frozen=True)
@@ -48,7 +48,7 @@ def rerank(
     candidate_profile: str,
     shortlist: list[ShortlistItem],
     model: CrossEncoderModel,
-    top_k: int = TOP_K,
+    top_k: int = RESPONSE_SIZE,
 ) -> list[RerankResult]:
     """Score `shortlist` with the Cross-encoder and return the top-k by Rerank Score.
 

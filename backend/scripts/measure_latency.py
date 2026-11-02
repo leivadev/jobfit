@@ -11,7 +11,9 @@ offline-script pattern as build_index.py / evaluate.py.
 
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = ""  # must precede any torch import (see module docstring)
+os.environ["CUDA_VISIBLE_DEVICES"] = (
+    ""  # must precede any torch import (see module docstring)
+)
 
 import argparse
 import statistics
@@ -27,10 +29,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from backend.domain.embeddings import BiEncoder
 from backend.domain.matching import KEYWORD_VOCABULARY
-from backend.domain.rerank import TOP_K as CUTOFF
+from backend.domain.rerank import RESPONSE_SIZE as CUTOFF
 from backend.domain.rerank import CrossEncoder, ShortlistItem, rerank
-from backend.domain.search import TOP_K as SHORTLIST_SIZE
-from backend.domain.search import JobSearchIndex
+from backend.domain.search import SHORTLIST_SIZE, JobSearchIndex
 
 ARTIFACTS_DIR = Path(__file__).parent.parent / "artifacts"
 CANDIDATE_DATASET_NAME = "lang-uk/recruitment-dataset-candidate-profiles-english"
@@ -58,7 +59,9 @@ def main() -> None:
 
     import torch
 
-    print(f"[measure_latency] torch device forced to cpu (torch.cuda.is_available()={torch.cuda.is_available()})")
+    print(
+        f"[measure_latency] torch device forced to cpu (torch.cuda.is_available()={torch.cuda.is_available()})"
+    )
 
     print("[measure_latency] loading local Job Index artifacts...")
     search_index = JobSearchIndex(faiss.read_index(str(ARTIFACTS_DIR / "jobs.index")))
@@ -90,7 +93,10 @@ def main() -> None:
         t3 = time.perf_counter()
 
         shortlist = [
-            ShortlistItem(job_row=result.job_row, job_text=metadata.iloc[result.job_row]["job_text"])
+            ShortlistItem(
+                job_row=result.job_row,
+                job_text=metadata.iloc[result.job_row]["job_text"],
+            )
             for result in shortlist_results
         ]
         rerank(candidate_profile, shortlist, cross_encoder, top_k=CUTOFF)
@@ -106,7 +112,9 @@ def main() -> None:
         baseline_total_ms.append((t2 - t0) * 1000)
         rerank_total_ms.append((t4 - t0) * 1000)
 
-    print(f"\n[measure_latency] N={args.num_requests} requests (+{WARMUP_REQUESTS} warmup, discarded), device=cpu")
+    print(
+        f"\n[measure_latency] N={args.num_requests} requests (+{WARMUP_REQUESTS} warmup, discarded), device=cpu"
+    )
     print(f"{'stage':<28}{'mean(ms)':>10}{'p50(ms)':>10}{'p95(ms)':>10}")
     print(summarize("encode (bi-encoder)", encode_ms))
     print(summarize(f"baseline search (top_k={CUTOFF})", baseline_search_ms))
@@ -117,7 +125,9 @@ def main() -> None:
 
     overhead_ms = statistics.mean(rerank_total_ms) - statistics.mean(baseline_total_ms)
     overhead_pct = overhead_ms / statistics.mean(baseline_total_ms) * 100
-    print(f"\nrerank overhead: +{overhead_ms:.1f}ms (+{overhead_pct:.0f}%) per request vs. baseline")
+    print(
+        f"\nrerank overhead: +{overhead_ms:.1f}ms (+{overhead_pct:.0f}%) per request vs. baseline"
+    )
 
 
 if __name__ == "__main__":

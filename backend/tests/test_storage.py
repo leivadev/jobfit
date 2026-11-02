@@ -33,6 +33,10 @@ def test_upload_artifacts_uploads_index_and_metadata_to_fixed_keys():
 
     upload_artifacts(client, settings, index_path, metadata_path)
 
-    client.upload_file.assert_any_call(str(index_path), settings.r2_bucket_name, JOBS_INDEX_KEY)
-    client.upload_file.assert_any_call(str(metadata_path), settings.r2_bucket_name, JOBS_METADATA_KEY)
+    client.upload_file.assert_any_call(
+        str(index_path), settings.r2_bucket_name, JOBS_INDEX_KEY
+    )
+    client.upload_file.assert_any_call(
+        str(metadata_path), settings.r2_bucket_name, JOBS_METADATA_KEY
+    )
     assert client.upload_file.call_count == 2

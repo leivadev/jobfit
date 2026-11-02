@@ -1,7 +1,9 @@
 SNIPPET_MAX_CHARS = 280
 
 
-def build_snippet(job_text: str, position: str, max_chars: int = SNIPPET_MAX_CHARS) -> str:
+def build_snippet(
+    job_text: str, position: str, max_chars: int = SNIPPET_MAX_CHARS
+) -> str:
     """Build a display snippet from a Job Metadata row's `job_text`.
 
     `job_text` is `position + " " + description` with all whitespace collapsed
@@ -21,5 +23,5 @@ def build_snippet(job_text: str, position: str, max_chars: int = SNIPPET_MAX_CHA
 
 def _strip_position_prefix(job_text: str, position: str) -> str:
     if job_text.startswith(position):
-        return job_text[len(position):].lstrip()
+        return job_text[len(position) :].lstrip()
     return job_text

@@ -46,11 +46,11 @@ def extract_text(
     `detect_format`; MIME type takes precedence over filename extension.
     Pure: `content` is only ever read from, never mutated.
     """
-    format_ = detect_format(filename, mime_type)
+    cv_format = detect_format(filename, mime_type)
 
-    if format_ is CvFormat.PDF:
+    if cv_format is CvFormat.PDF:
         text = _extract_pdf_text(content)
-    elif format_ is CvFormat.DOCX:
+    elif cv_format is CvFormat.DOCX:
         text = _extract_docx_text(content)
     else:
         text = _extract_plain_text(content)
@@ -75,8 +75,7 @@ def detect_format(filename: str | None, mime_type: str | None) -> CvFormat:
             return _EXTENSIONS[f".{extension.lower()}"]
 
     raise UnsupportedCvFormatError(
-        f"Can't determine CV format from mime_type={mime_type!r}, "
-        f"filename={filename!r}"
+        f"Can't determine CV format from mime_type={mime_type!r}, filename={filename!r}"
     )
 
 
@@ -84,7 +83,10 @@ def _extract_pdf_text(content: bytes) -> str:
     """Pure: `content` is only ever read from, never mutated."""
     try:
         reader = pypdf.PdfReader(io.BytesIO(content))
-        if reader.is_encrypted and reader.decrypt("") == pypdf.PasswordType.NOT_DECRYPTED:
+        if (
+            reader.is_encrypted
+            and reader.decrypt("") == pypdf.PasswordType.NOT_DECRYPTED
+        ):
             raise CvExtractionError("CV PDF is password-protected")
         pages = [page.extract_text() or "" for page in reader.pages]
         return "\n".join(pages).strip()

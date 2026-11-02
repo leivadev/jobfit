@@ -44,7 +44,9 @@ def test_recommend_unexpected_failure_logs_error_entry_with_exception_info(monke
             assert "Jane Doe" not in str(value)
             assert CANDIDATE_PROFILE not in str(value)
 
-    aggregate_entries = [entry for entry in captured if entry["event"] == "recommend_request"]
+    aggregate_entries = [
+        entry for entry in captured if entry["event"] == "recommend_request"
+    ]
     assert len(aggregate_entries) == 1
     assert aggregate_entries[0]["error"] is True
 
@@ -63,6 +65,8 @@ def test_recommend_intentional_400_produces_no_error_level_entry():
     error_entries = [entry for entry in captured if entry["log_level"] == "error"]
     assert error_entries == []
 
-    aggregate_entries = [entry for entry in captured if entry["event"] == "recommend_request"]
+    aggregate_entries = [
+        entry for entry in captured if entry["event"] == "recommend_request"
+    ]
     assert len(aggregate_entries) == 1
     assert aggregate_entries[0]["error"] is True
