@@ -42,7 +42,7 @@ The offline pipeline and the online service are decoupled: the pipeline runs onc
 
 | Component | Choice | Reason |
 | --- | --- | --- |
-| Embeddings | `sentence-transformers/all-MiniLM-L6-v2` | Fast, lightweight, good baseline |
+| Embeddings | `BAAI/bge-small-en-v1.5` | Beat MiniLM and matched bge-base in local tests (ADR-0009) |
 | Reranking | `cross-encoder/ms-marco-MiniLM-L6-v2` | Improves precision over the top-20 |
 | Vector search | FAISS (`IndexFlatIP`, in-memory) | Sufficient for 10-20k vectors |
 | Backend | FastAPI | Async, typed, automatic OpenAPI |

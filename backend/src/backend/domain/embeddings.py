@@ -22,31 +22,46 @@ class EmbeddingModel(ABC):
     @abstractmethod
     def encode(self, texts: list[str]) -> np.ndarray: ...
 
+    @abstractmethod
+    def encode_query(self, texts: list[str]) -> np.ndarray: ...
+
 
 class BiEncoder(EmbeddingModel):
-    """all-MiniLM-L6-v2 Bi-encoder that chunks + mean-pools long text (ADR-0007).
+    """bge-small-en-v1.5 Bi-encoder that chunks + mean-pools long text (ADR-0007, ADR-0009).
 
-    Used to embed both Jobs (Offline Pipeline) and Candidate Profiles (query time)
-    so the two stay comparable under cosine similarity.
+    Jobs (Offline Pipeline) go through `encode`, Candidate Profiles (query time)
+    through `encode_query`. Both stay comparable under cosine similarity.
     """
 
-    MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+    MODEL_NAME = "BAAI/bge-small-en-v1.5"
     # Pinned revision, not the moving default branch — an upstream model update
     # must not silently desync old Job vectors from new query vectors (ADR-0007).
-    MODEL_REVISION = "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"
-    MAX_CHUNK_TOKENS = 256
+    MODEL_REVISION = "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a"
+    # 512-token window minus the query prefix (~9 tokens) and [CLS]/[SEP].
+    MAX_CHUNK_TOKENS = 480
+    # bge is trained asymmetrically: the Candidate Profile is the "query", Jobs are
+    # passages without a prefix.
+    QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
 
     def __init__(self) -> None:
         self.model = SentenceTransformer(self.MODEL_NAME, revision=self.MODEL_REVISION)
         # Raises model_max_length so tokenizer.encode() in _chunk_text doesn't warn
-        # about "sequence length > 256" — that call is intentionally unbounded
+        # about "sequence length > 512" — that call is intentionally unbounded
         # since chunking (not truncation) handles the limit (ADR-0007).
         self.model.tokenizer.model_max_length = int(1e9)
 
     def encode(self, texts: list[str]) -> np.ndarray:
+        """Embed Jobs (passages): no prefix."""
+        return self._encode_chunked(texts, prefix="")
+
+    def encode_query(self, texts: list[str]) -> np.ndarray:
+        """Embed Candidate Profiles (queries): QUERY_PREFIX on every chunk."""
+        return self._encode_chunked(texts, prefix=self.QUERY_PREFIX)
+
+    def _encode_chunked(self, texts: list[str], prefix: str) -> np.ndarray:
         """Embed each text as the mean-pooled vector of its chunk embeddings.
 
-        Splits each text into <=256-token chunks (ADR-0007) so long descriptions
+        Splits each text into <=MAX_CHUNK_TOKENS chunks (ADR-0007) so long descriptions
         are never silently truncated, encodes every chunk, and mean-pools the raw
         (unnormalized) chunk vectors into one (384,) vector per text. Normalization
         is deferred to the caller (e.g. FAISS index construction).
@@ -60,7 +75,7 @@ class BiEncoder(EmbeddingModel):
             for text in tqdm(texts, desc="chunking texts", unit="text")
         ]
         chunk_counts = [len(chunks) for chunks in chunks_per_text]
-        all_chunks = [chunk for chunks in chunks_per_text for chunk in chunks]
+        all_chunks = [prefix + chunk for chunks in chunks_per_text for chunk in chunks]
 
         chunk_embeddings = (
             self._encode_raw(all_chunks, device)

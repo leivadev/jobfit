@@ -145,7 +145,7 @@ def main() -> None:
         candidate_profile = row["CV"]
         relevant_ids = jobs_by_keyword.get(row["Primary Keyword"], set())
 
-        query_vector = bi_encoder.encode([candidate_profile])[0]
+        query_vector = bi_encoder.encode_query([candidate_profile])[0]
 
         # Store full SHORTLIST_SIZE-length rankings — metric fns slice to k themselves,
         # so one pass here covers both the @10 and @100 readings.

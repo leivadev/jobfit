@@ -70,7 +70,7 @@ async def recommend(
         except (UnsupportedCvFormatError, CvExtractionError) as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
 
-        query_vector = state.bi_encoder.encode([candidate_profile])[0]
+        query_vector = state.bi_encoder.encode_query([candidate_profile])[0]
         search_results = state.search_index.search(query_vector)
 
         shortlist = [
