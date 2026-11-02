@@ -1,8 +1,8 @@
 # JobFit
 
-> Dense Vector Representation-based IT Job Recommendation Engine
+> Dense Vector Representation-based Job Recommendation Engine
 
-A visitor uploads their resume and receives the most relevant IT job postings, using **semantic embeddings** over a real job listings dataset. Portfolio project focused on embeddings, vector search, and reranking, combined with software engineering (backend, frontend, deployment, user data privacy).
+A visitor uploads their resume and receives the most relevant job postings, using **semantic embeddings** over a real job listings dataset. Portfolio project focused on embeddings, vector search, and reranking, combined with software engineering (backend, frontend, deployment, user data privacy).
 
 **Status**: all 9 phases (offline pipeline, backend API, frontend, CV extraction, privacy/rate limiting, infra, deployment, evaluation) are implemented and deployed. Live at [jobfit-app.leivadev.com](https://jobfit-app.leivadev.com) (backend: `jobfit-api.leivadev.com`).
 
@@ -58,7 +58,7 @@ The offline pipeline and the online service are decoupled: the pipeline runs onc
 
 ## Data
 
-- **Job postings**: [`lang-uk/recruitment-dataset-job-descriptions-english`](https://huggingface.co/datasets/lang-uk/recruitment-dataset-job-descriptions-english) (~142k IT postings, Djinni platform, 2020-2023, MIT). Filtered to the most represented `Primary Keyword` categories (QA, DevOps, iOS/Android, Data, main languages), deduplicated.
+- **Job postings**: [`lang-uk/recruitment-dataset-job-descriptions-english`](https://huggingface.co/datasets/lang-uk/recruitment-dataset-job-descriptions-english) (~142k postings, Djinni platform, 2020-2023, MIT). All 45 `Primary Keyword` categories (dev, design, product, marketing, sales, HR, ...) are indexed, deduplicated (~125k jobs).
 - **Offline evaluation**: [`lang-uk/recruitment-dataset-candidate-profiles-english`](https://huggingface.co/datasets/lang-uk/recruitment-dataset-candidate-profiles-english) (~230k anonymized resumes), never exposed in production.
 
 ## Repo structure

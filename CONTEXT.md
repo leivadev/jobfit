@@ -1,11 +1,11 @@
 # JobFit
 
-A recommendation engine that matches an uploaded CV against a corpus of IT job postings using dense vector embeddings, FAISS similarity search, and cross-encoder reranking.
+A recommendation engine that matches an uploaded CV against a corpus of job postings using dense vector embeddings, FAISS similarity search, and cross-encoder reranking.
 
 ## Language
 
 **Job**:
-An IT job posting from the source dataset, described by a title, company, and description text.
+A job posting from the source dataset, described by a title, company, and description text.
 _Avoid_: Vacante, Posting, Listing.
 
 **CV**:

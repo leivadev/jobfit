@@ -1,0 +1,7 @@
+# Index all 45 Primary Keyword categories, not just IT roles
+
+The Job Index originally held 18 of the source dataset's 45 `Primary Keyword` values (dev, QA, DevOps, data), on the framing that JobFit recommends *IT* jobs. That cut dropped Design (4,020 postings), Product/Project Manager, Business Analyst, Marketing, Sales, HR and others, so a CV from any of those fields could only be matched to unrelated dev jobs: the right jobs weren't in the index. A UI/UX CV getting only JavaScript results was the symptom that exposed it. The cut was a scope decision, not a technical constraint, and nothing in the architecture depended on it.
+
+We now index every `Primary Keyword`, ~125k postings after dedup (was 10-20k). `KEYWORD_VOCABULARY` in `matching.py` is the single source of truth for both the offline filter and the Candidate Signals validation, so the two can't drift again. Single-row outliers (React, SAP, Product Owner, Block-chain) and "Other" are kept: harmless, and filtering by hand is the kind of silent exclusion this ADR reverses.
+
+Consequences: Job Index grows to ~190 MB (384-dim) and Job Metadata to ~240 MB in pandas, so ADR-0001's "~30 MB" and ADR-0002's sizing no longer hold; the backend's 1 GiB budget needs re-measuring before deploy. The weak-label evaluation (shared `Primary Keyword`) now spans all 45 categories, so its numbers are not comparable to the earlier 18-category ones.
