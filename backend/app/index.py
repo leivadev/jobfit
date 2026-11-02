@@ -9,7 +9,7 @@ def build_faiss_index(embeddings: np.ndarray) -> faiss.Index:
     """Build a cosine-similarity FAISS index over Job embeddings (see ADR-0002).
 
     L2-normalizes a copy of `embeddings`, then indexes with IndexFlatIP so
-    inner product search is equivalent to cosine similarity. Pure.
+    inner product search is equivalent to cosine similarity.
     """
     normalized = np.array(embeddings, dtype=np.float32, copy=True, order="C")
     faiss.normalize_L2(normalized)

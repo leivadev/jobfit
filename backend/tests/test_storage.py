@@ -1,9 +1,10 @@
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from storage import JOBS_INDEX_KEY, JOBS_METADATA_KEY, build_r2_client, upload_artifacts
+from storage import upload_artifacts
 
 from backend.config import Settings
+from backend.r2 import JOBS_INDEX_KEY, JOBS_METADATA_KEY, build_r2_client
 
 
 def make_settings():

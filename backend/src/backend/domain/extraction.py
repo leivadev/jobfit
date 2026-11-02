@@ -44,7 +44,6 @@ def extract_text(
     `content` is read entirely in memory (io.BytesIO) and never written to
     disk, per ADR-0001 / the privacy requirement. Format is resolved by
     `detect_format`; MIME type takes precedence over filename extension.
-    Pure: `content` is only ever read from, never mutated.
     """
     cv_format = detect_format(filename, mime_type)
 
@@ -63,8 +62,7 @@ def extract_text(
 def detect_format(filename: str | None, mime_type: str | None) -> CvFormat:
     """Public so the API layer can reject an unsupported/undetectable format
     before reading the upload body, reusing this instead of a second,
-    parallel MIME check. Pure: no side effects, same inputs always resolve to
-    the same format.
+    parallel MIME check.
     """
     if mime_type in _MIME_TYPES:
         return _MIME_TYPES[mime_type]
@@ -80,7 +78,6 @@ def detect_format(filename: str | None, mime_type: str | None) -> CvFormat:
 
 
 def _extract_pdf_text(content: bytes) -> str:
-    """Pure: `content` is only ever read from, never mutated."""
     try:
         reader = pypdf.PdfReader(io.BytesIO(content))
         if (
@@ -102,8 +99,7 @@ def _extract_docx_text(content: bytes) -> str:
     """Extract paragraph and table text, in document order.
 
     CVs commonly lay out skills/experience in tables, so `document.paragraphs`
-    alone would silently drop that content. Pure: `content` is only ever read
-    from, never mutated.
+    alone would silently drop that content.
     """
     try:
         document = Document(io.BytesIO(content))
@@ -122,7 +118,6 @@ def _extract_docx_text(content: bytes) -> str:
 
 
 def _extract_plain_text(content: bytes) -> str:
-    """Pure: `content` is only ever read from, never mutated."""
     try:
         return content.decode("utf-8").strip()
     except UnicodeDecodeError as error:

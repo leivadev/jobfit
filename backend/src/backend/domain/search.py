@@ -30,7 +30,7 @@ class JobSearchIndex:
         L2-normalizes a copy of the query vector so inner-product search over
         the (already-normalized) Job Index is equivalent to cosine similarity,
         matching how the index was built (see `app/index.py::build_faiss_index`).
-        Pure: `query_vector` is copied before normalization, never mutated.
+        `query_vector` is copied, never mutated.
         """
         query = np.array(query_vector, dtype=np.float32, copy=True, order="C").reshape(
             1, -1

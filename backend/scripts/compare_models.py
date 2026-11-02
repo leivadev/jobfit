@@ -78,7 +78,7 @@ RERANKERS = {
 }
 
 
-def prep(n_jobs: int, n_cvs: int) -> None:
+def prepare_sample(n_jobs: int, n_cvs: int) -> None:
     from datasets import load_dataset
 
     WORK.mkdir(exist_ok=True)
@@ -142,7 +142,7 @@ def _chunk_embed(model, texts: list[str], chunk_tokens: int, prefix: str) -> np.
     return vectors
 
 
-def embed(keys: list[str]) -> None:
+def embed_with_models(keys: list[str]) -> None:
     import torch
     from sentence_transformers import SentenceTransformer
 
@@ -190,7 +190,7 @@ def _load_ground_truth():
     return jobs, cvs, job_ids, rel_by_kw
 
 
-def evaluate() -> None:
+def evaluate_models() -> None:
     from eval_metrics import mean_metrics
 
     jobs, cvs, job_ids, rel_by_kw = _load_ground_truth()
@@ -342,9 +342,9 @@ def main() -> None:
     sub.add_parser("cpu").add_argument("keys", nargs="+")
     args = parser.parse_args()
     {
-        "prep": lambda: prep(args.jobs, args.cvs),
-        "embed": lambda: embed(args.keys),
-        "eval": evaluate,
+        "prep": lambda: prepare_sample(args.jobs, args.cvs),
+        "embed": lambda: embed_with_models(args.keys),
+        "eval": evaluate_models,
         "rerank": lambda: rerank_eval(args.bi_key, args.cvs),
         "cpu": lambda: cpu_bench(args.keys),
     }[args.cmd]()

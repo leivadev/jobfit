@@ -10,7 +10,7 @@ def build_snippet(
     (see `app/dataset.py::build_metadata`), so the position is stripped back off
     when it's a leading prefix to avoid repeating it verbatim next to the
     `position` field already in the response. Truncates on a word boundary
-    rather than mid-word. Pure.
+    rather than mid-word.
     """
     description = _strip_position_prefix(job_text, position)
 

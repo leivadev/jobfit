@@ -6,13 +6,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from backend.api.artifacts import (
-    JOBS_INDEX_KEY,
-    JOBS_METADATA_KEY,
-    build_r2_client,
-    load_artifacts,
-)
+from backend.api.artifacts import load_artifacts
 from backend.config import Settings
+from backend.r2 import JOBS_INDEX_KEY, JOBS_METADATA_KEY, build_r2_client
 
 
 def make_settings():

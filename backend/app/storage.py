@@ -1,9 +1,7 @@
 from pathlib import Path
 
 from backend.config import Settings
-from backend.r2 import JOBS_INDEX_KEY, JOBS_METADATA_KEY, build_r2_client
-
-__all__ = ["JOBS_INDEX_KEY", "JOBS_METADATA_KEY", "build_r2_client", "upload_artifacts"]
+from backend.r2 import JOBS_INDEX_KEY, JOBS_METADATA_KEY
 
 
 def upload_artifacts(

@@ -8,8 +8,6 @@ from backend.config import Settings
 from backend.domain.search import JobSearchIndex
 from backend.r2 import JOBS_INDEX_KEY, JOBS_METADATA_KEY, build_r2_client
 
-__all__ = ["JOBS_INDEX_KEY", "JOBS_METADATA_KEY", "build_r2_client", "load_artifacts"]
-
 
 def load_artifacts(
     settings: Settings, client=None

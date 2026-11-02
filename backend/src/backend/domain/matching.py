@@ -58,11 +58,7 @@ KEYWORD_VOCABULARY = frozenset(
 
 @dataclass(frozen=True)
 class CandidateSignals:
-    """The candidate's own declared experience/skills, from `/recommend`'s optional form fields.
-
-    Both fields travel together through the route into `_to_recommendation`,
-    so they're bundled here rather than passed as loose parameters.
-    """
+    """The candidate's own declared experience/skills, from `/recommend`'s optional form fields."""
 
     exp_years: str | None = None
     keywords: list[str] | None = None
@@ -73,11 +69,7 @@ class InvalidCandidateSignalError(ValueError):
 
 
 def validate_candidate_signals(signals: CandidateSignals) -> None:
-    """Raise `InvalidCandidateSignalError` if either declared signal is out of vocabulary.
-
-    Pure: raises rather than returning a bool, matching `extraction.py`'s
-    `UnsupportedCvFormatError` convention of domain-owned validation.
-    """
+    """Raise `InvalidCandidateSignalError` if either declared signal is out of vocabulary."""
     if signals.exp_years is not None and signals.exp_years not in _EXP_YEARS_RANK:
         raise InvalidCandidateSignalError(f"Invalid exp_years: {signals.exp_years!r}")
 
@@ -95,7 +87,7 @@ def exp_distance(candidate_exp_years: str | None, job_exp_years: str) -> int | N
     `None` when the candidate didn't declare `exp_years` (absent signal, not a
     distance of 0), or when either bucket isn't on the scale (e.g. Job
     Metadata predating this vocabulary) — an unrecognized bucket means
-    "unknown", not "maximally distant". Pure.
+    "unknown", not "maximally distant".
     """
     if candidate_exp_years is None:
         return None
@@ -112,7 +104,7 @@ def keyword_match(candidate_keywords: list[str] | None, job_keyword: str) -> boo
     """Whether any of the candidate's declared keywords overlaps the job's keyword.
 
     `False` when the candidate declared no keywords (absent signal, not a
-    negative match). Pure.
+    negative match).
     """
     if not candidate_keywords:
         return False
