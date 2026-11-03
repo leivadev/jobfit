@@ -67,8 +67,8 @@ The offline pipeline and the online service are decoupled: the pipeline runs onc
 jobfit/
 ├── backend/            # FastAPI + offline pipeline (uv)
 │   ├── src/backend/      # installable package: config, API, domain (extraction, embeddings, search, rerank, matching)
-│   ├── app/              # offline pipeline: dataset, text, embeddings, index, storage
-│   ├── scripts/          # build_index.py, evaluate.py, evaluate_scale.py, measure_latency.py
+│   ├── app/              # offline pipeline: dataset, text, index, storage
+│   ├── scripts/          # build_index.py, evaluate.py, evaluate_scale.py, eval_metrics.py (shared), compare_models.py, measure_latency.py
 │   └── tests/
 ├── frontend/            # React + Vite, deployed on Cloudflare Workers
 ├── infra/               # Azure Container Apps probe config
