@@ -13,4 +13,4 @@ Offline only, using `lang-uk/recruitment-dataset-candidate-profiles-english` (~2
 
 ## Reporting
 
-Results get documented in the repo README once Phase 8 (quantitative evaluation) is implemented — this is the evidence that the Cross-encoder rerank step is worth its added latency, not just an assumption.
+Results are documented in the repo README (Phase 8; refresh them with `scripts/evaluate_scale.py` and `scripts/measure_latency.py` after any model or index change, since ADR-0008/0009 made earlier numbers incomparable) — this is the evidence that the Cross-encoder rerank step is worth its added latency, not just an assumption.

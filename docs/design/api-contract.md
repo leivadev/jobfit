@@ -8,7 +8,7 @@ See `CONTEXT.md` for term definitions (Job, CV, Candidate Profile, Similarity Sc
   - `exp_years`: single value, one of the 5 buckets on the ordered scale `no_exp`, `1y`, `2y`, `3y`, `5y` (same vocabulary as Job Metadata's `exp_years`).
   - `keywords`: zero or more values, each one of the 45-value controlled vocabulary used by Job Metadata's `keyword` (every `Primary Keyword` in the source dataset; see `KEYWORD_VOCABULARY` in `backend/src/backend/domain/matching.py`).
   - Both fields are independently optional; a request with neither behaves exactly as if they didn't exist. A value outside either controlled vocabulary is rejected with 400.
-- **Process**: extract text from the CV → build a Candidate Profile → embed it with the Bi-encoder → retrieve the top-20 Jobs from the Job Index by Similarity Score → rerank with the Cross-encoder → return the top-10 as Recommendations. `exp_years`/`keywords` do not affect ranking (see the "Recommendation" ticket for that) — they only annotate the response.
+- **Process**: extract text from the CV → build a Candidate Profile → embed it with the Bi-encoder → retrieve the top-20 Jobs from the Job Index by Similarity Score → rerank with the Cross-encoder → return the top-10 as Recommendations. `exp_years`/`keywords` tier the reranked shortlist (`tier_by_fit`): `keyword_match` first, then `exp_distance` ascending, then `rerank_score` descending. When neither is declared, order is pure `rerank_score`. The Cross-encoder scores the whole 20-Job shortlist so tiering can promote a Job from outside the raw top-10.
 - **Output**: a ranked list of Recommendations.
 
 ### Response contract
@@ -37,7 +37,7 @@ The field is `rerank_score`, not `score`: only the Cross-encoder's score is expo
 
 ## `GET /health`
 
-Liveness check, no request body. Used by the deployment platform (Railway/Fly.io), not by the frontend.
+Liveness check, no request body. Used by the deployment platform's startup/liveness probes (Azure Container Apps) and polled by the frontend to detect a cold-started backend before it sends `/recommend`.
 
 ## Uploaded CV handling (privacy)
 

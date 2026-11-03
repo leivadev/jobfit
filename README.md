@@ -44,10 +44,10 @@ The offline pipeline and the online service are decoupled: the pipeline runs onc
 | --- | --- | --- |
 | Embeddings | `BAAI/bge-small-en-v1.5` | Beat MiniLM and matched bge-base in local tests (ADR-0009) |
 | Reranking | `cross-encoder/ms-marco-MiniLM-L6-v2` | Improves precision over the top-20 |
-| Vector search | FAISS (`IndexFlatIP`, in-memory) | Sufficient for 10-20k vectors |
+| Vector search | FAISS (`IndexFlatIP`, in-memory) | Exact search is fast enough for ~125k vectors (ADR-0002, ADR-0008) |
 | Backend | FastAPI | Async, typed, automatic OpenAPI |
 | Resume extraction | `pypdf`, `python-docx` | PDF and DOCX coverage |
-| Rate limiting | `slowapi` | Per-IP, moving-window, no external store needed |
+| Rate limiting | `slowapi` | Per-IP (client IP via `RATE_LIMIT_KEY_STRATEGY`), moving-window, no external store needed |
 | Logging | `structlog` | Structured logs without CV content |
 | Dependency manager (backend) | `uv` | Fast, lockfile, single binary |
 | Frontend | React + Vite + Tailwind | Standard, quick to build for a single screen |
@@ -67,8 +67,8 @@ The offline pipeline and the online service are decoupled: the pipeline runs onc
 jobfit/
 ├── backend/            # FastAPI + offline pipeline (uv)
 │   ├── src/backend/      # installable package: config, API, domain (extraction, embeddings, search, rerank, matching)
-│   ├── app/              # offline pipeline: dataset, text, embeddings, index, storage
-│   ├── scripts/          # build_index.py, evaluate.py, evaluate_scale.py, measure_latency.py
+│   ├── app/              # offline pipeline: dataset, text, index, storage
+│   ├── scripts/          # build_index.py, evaluate.py, evaluate_scale.py, eval_metrics.py (shared), compare_models.py, measure_latency.py
 │   └── tests/
 ├── frontend/            # React + Vite, deployed on Cloudflare Workers
 ├── infra/               # Azure Container Apps probe config
@@ -108,7 +108,7 @@ Anyone can upload their real resume to a public demo. To ensure privacy:
 
 - The resume is processed **in memory**, never written to disk or persisted.
 - Resume content is not logged, only aggregate metrics (size, processing time, errors).
-- Rate limiting on `/recommend` (3 requests/min per IP), a 5 MB file size limit, and MIME type validation.
+- Rate limiting on `/recommend` (3 requests/min per IP; set `RATE_LIMIT_KEY_STRATEGY=forwarded_for` behind a proxy so each visitor gets their own bucket), a 5 MB file size limit, and MIME type validation.
 
 ## API
 
@@ -128,6 +128,8 @@ Offline metrics comparing bi-encoder only vs. bi-encoder + cross-encoder rerank,
 | MAP@20 | Same as MAP@10, over the top 20 |
 | HitRate@10 | 1 if any relevant job appears in the top 10, else 0 |
 
+> **Stale:** the figures below and the latency table were measured on 2026-09-16 with MiniLM and the 18-keyword IT subset. They predate ADR-0008 (45 keywords, ~125k Jobs) and ADR-0009 (bge-small, ~2x slower CV encode: 62 ms → 120 ms) and are not comparable to the current system. Re-run `scripts/evaluate_scale.py` and `scripts/measure_latency.py` to refresh them.
+
 **~1% of the candidate dataset** (N=1,280, automated weak label = shared `Primary Keyword`, `scripts/evaluate_scale.py`):
 
 | metric | baseline | rerank | delta |
@@ -146,6 +148,8 @@ Reranking improves most metrics over the bi-encoder baseline alone, at a real la
 | --- | --- | --- |
 | bi-encoder only | 67ms | 136ms |
 | bi-encoder + cross-encoder rerank | 2099ms | 2375ms |
+
+**Production spot check** (2026-11-03, bge-small + 45-keyword index, one short CV, 9 sequential requests): cold start ~46 s on the first `/health`; warm `/recommend` end-to-end 1.6-2.7 s (median ~2.7 s), including network. Single CV and small N, so indicative only.
 
 The cross-encoder is the whole cost: +2s/request for a 1.5-3% quality gain. The shortlist reranked was shrunk from 100 to 20 jobs specifically to bring this down from an initial ~11s/request to something tolerable for a synchronous request.
 
