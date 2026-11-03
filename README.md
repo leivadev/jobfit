@@ -149,6 +149,8 @@ Reranking improves most metrics over the bi-encoder baseline alone, at a real la
 | bi-encoder only | 67ms | 136ms |
 | bi-encoder + cross-encoder rerank | 2099ms | 2375ms |
 
+**Production spot check** (2026-11-03, bge-small + 45-keyword index, one short CV, 9 sequential requests): cold start ~46 s on the first `/health`; warm `/recommend` end-to-end 1.6-2.7 s (median ~2.7 s), including network. Single CV and small N, so indicative only.
+
 The cross-encoder is the whole cost: +2s/request for a 1.5-3% quality gain. The shortlist reranked was shrunk from 100 to 20 jobs specifically to bring this down from an initial ~11s/request to something tolerable for a synchronous request.
 
 ## Project status
