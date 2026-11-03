@@ -44,10 +44,10 @@ The offline pipeline and the online service are decoupled: the pipeline runs onc
 | --- | --- | --- |
 | Embeddings | `BAAI/bge-small-en-v1.5` | Beat MiniLM and matched bge-base in local tests (ADR-0009) |
 | Reranking | `cross-encoder/ms-marco-MiniLM-L6-v2` | Improves precision over the top-20 |
-| Vector search | FAISS (`IndexFlatIP`, in-memory) | Sufficient for 10-20k vectors |
+| Vector search | FAISS (`IndexFlatIP`, in-memory) | Exact search is fast enough for ~125k vectors (ADR-0002, ADR-0008) |
 | Backend | FastAPI | Async, typed, automatic OpenAPI |
 | Resume extraction | `pypdf`, `python-docx` | PDF and DOCX coverage |
-| Rate limiting | `slowapi` | Per-IP, moving-window, no external store needed |
+| Rate limiting | `slowapi` | Per-IP (client IP via `RATE_LIMIT_KEY_STRATEGY`), moving-window, no external store needed |
 | Logging | `structlog` | Structured logs without CV content |
 | Dependency manager (backend) | `uv` | Fast, lockfile, single binary |
 | Frontend | React + Vite + Tailwind | Standard, quick to build for a single screen |
@@ -108,7 +108,7 @@ Anyone can upload their real resume to a public demo. To ensure privacy:
 
 - The resume is processed **in memory**, never written to disk or persisted.
 - Resume content is not logged, only aggregate metrics (size, processing time, errors).
-- Rate limiting on `/recommend` (3 requests/min per IP), a 5 MB file size limit, and MIME type validation.
+- Rate limiting on `/recommend` (3 requests/min per IP; set `RATE_LIMIT_KEY_STRATEGY=forwarded_for` behind a proxy so each visitor gets their own bucket), a 5 MB file size limit, and MIME type validation.
 
 ## API
 
@@ -127,6 +127,8 @@ Offline metrics comparing bi-encoder only vs. bi-encoder + cross-encoder rerank,
 | MAP@10 | Average precision at each relevant job's rank, within the top 10 |
 | MAP@20 | Same as MAP@10, over the top 20 |
 | HitRate@10 | 1 if any relevant job appears in the top 10, else 0 |
+
+> **Stale:** the figures below and the latency table were measured on 2026-09-16 with MiniLM and the 18-keyword IT subset. They predate ADR-0008 (45 keywords, ~125k Jobs) and ADR-0009 (bge-small, ~2x slower CV encode: 62 ms → 120 ms) and are not comparable to the current system. Re-run `scripts/evaluate_scale.py` and `scripts/measure_latency.py` to refresh them.
 
 **~1% of the candidate dataset** (N=1,280, automated weak label = shared `Primary Keyword`, `scripts/evaluate_scale.py`):
 

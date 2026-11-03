@@ -1,6 +1,6 @@
 # Research: domain-specific embedding models for CV-Job matching (v2)
 
-Not a decision yet — the MVP ships with `sentence-transformers/all-MiniLM-L6-v2` (generic). This is a survey of alternatives for a possible v2, reviewing recent recruitment-domain literature. Promote the relevant section to an ADR once a v2 model is actually chosen.
+Not a decision yet. The MVP shipped with `sentence-transformers/all-MiniLM-L6-v2` (generic) and has since moved to `bge-small-en-v1.5` (ADR-0009); this survey is for a possible v2 beyond that. This is a survey of alternatives for a possible v2, reviewing recent recruitment-domain literature. Promote the relevant section to an ADR once a v2 model is actually chosen.
 
 ## Candidates
 
