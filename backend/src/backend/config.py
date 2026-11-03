@@ -40,16 +40,28 @@ class RateLimitSettings(BaseSettings):
     rate_limit_key_strategy: str = "remote_address"
 
 
+def forwarded_for_address(request: Request) -> str:
+    """Client IP as appended by the single trusted ingress proxy.
+
+    Uses the *last* `X-Forwarded-For` entry: a client can prepend arbitrary
+    entries, but only the proxy controls the one it appends. Falls back to the
+    peer address when the header is absent (e.g. direct access).
+    """
+    forwarded = request.headers.get("x-forwarded-for", "")
+    last_hop = forwarded.rsplit(",", 1)[-1].strip()
+    return last_hop or get_remote_address(request)
+
+
 RATE_LIMIT_KEY_FUNCS: dict[str, Callable[[Request], str]] = {
     "remote_address": get_remote_address,
+    "forwarded_for": forwarded_for_address,
 }
 
 
 def resolve_rate_limit_key_func() -> Callable[[Request], str]:
     """Client-IP key function for the `/recommend` rate limiter, swappable via
-    `RATE_LIMIT_KEY_STRATEGY`. Only `remote_address` (the raw peer address) is
-    implemented; a trusted forwarded-header strategy is reserved for
-    Phase 6/7, once the deployment platform's proxy behavior is known."""
+    `RATE_LIMIT_KEY_STRATEGY`. Behind an ingress proxy the peer address is the
+    proxy's, so the limit would be global: set `forwarded_for` there."""
     strategy = RateLimitSettings().rate_limit_key_strategy
     try:
         return RATE_LIMIT_KEY_FUNCS[strategy]

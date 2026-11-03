@@ -13,15 +13,16 @@ import faiss
 import pandas as pd
 from dataset import deduplicate_jobs, filter_jobs, load_raw_jobs
 from dotenv import load_dotenv
-from embeddings import embed_texts, load_model
 from index import build_faiss_index, save_artifacts
-from storage import build_r2_client, upload_artifacts
+from storage import upload_artifacts
 from text import build_job_text, clean_text
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 from backend.config import Settings
+from backend.domain.embeddings import BiEncoder
 from backend.domain.matching import KEYWORD_VOCABULARY
+from backend.r2 import build_r2_client
 
 ARTIFACTS_DIR = Path(__file__).parent.parent / "artifacts"
 
@@ -33,7 +34,9 @@ def build_metadata(df: pd.DataFrame) -> pd.DataFrame:
 
     job_text = [
         clean_text(build_job_text(position, description))
-        for position, description in zip(deduped["Position"], deduped["Long Description"])
+        for position, description in zip(
+            deduped["Position"], deduped["Long Description"]
+        )
     ]
 
     return pd.DataFrame(
@@ -60,10 +63,10 @@ def run(
     print(f"[build_index] {len(metadata)} rows after filter/dedup")
 
     print("[build_index] loading embedding model...")
-    model = load_model()
+    model = BiEncoder()
 
     print(f"[build_index] embedding {len(metadata)} job texts...")
-    embeddings = embed_texts(metadata["job_text"].tolist(), model)
+    embeddings = model.encode(metadata["job_text"].tolist())
     print(f"[build_index] embedded, shape={embeddings.shape}")
 
     print("[build_index] building FAISS index...")
@@ -73,7 +76,9 @@ def run(
     index_path.parent.mkdir(parents=True, exist_ok=True)
     save_artifacts(index, metadata, index_path, metadata_path)
 
-    print(f"[build_index] uploading artifacts to R2 bucket {settings.r2_bucket_name}...")
+    print(
+        f"[build_index] uploading artifacts to R2 bucket {settings.r2_bucket_name}..."
+    )
     client = build_r2_client(settings)
     upload_artifacts(client, settings, index_path, metadata_path)
     print("[build_index] upload complete")
@@ -86,7 +91,12 @@ def main() -> None:
     print("[build_index] loading raw dataset...")
     df = load_raw_jobs()
     print(f"[build_index] loaded {len(df)} raw rows")
-    run(df, ARTIFACTS_DIR / "jobs.index", ARTIFACTS_DIR / "jobs_metadata.parquet", settings)
+    run(
+        df,
+        ARTIFACTS_DIR / "jobs.index",
+        ARTIFACTS_DIR / "jobs_metadata.parquet",
+        settings,
+    )
     print("[build_index] done")
 
 

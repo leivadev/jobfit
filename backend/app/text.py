@@ -11,7 +11,7 @@ CYRILLIC_PRESENCE_THRESHOLD = 0.2
 
 def clean_text(text: str) -> str:
     """Normalize line endings, drop Ukrainian/Russian content, strip
-    asterisk emphasis/bullets, collapse whitespace. Pure."""
+    asterisk emphasis/bullets, collapse whitespace."""
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     text = CYRILLIC_PARENTHETICAL_RE.sub("", text)
     text = _strip_cyrillic_lines(text)
@@ -70,5 +70,5 @@ def _has_cyrillic_content(line: str) -> bool:
 
 
 def build_job_text(position: str, description: str) -> str:
-    """Join position and description into one embedding-ready string. Pure."""
+    """Join position and description into one embedding-ready string."""
     return f"{position}\n{description}"

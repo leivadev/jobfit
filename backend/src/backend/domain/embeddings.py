@@ -6,6 +6,8 @@ import torch
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
 
+ENCODE_BATCH_SIZE = 128
+
 
 class Tokenizer(Protocol):
     def encode(self, text: str, add_special_tokens: bool) -> list[int]: ...
@@ -65,7 +67,6 @@ class BiEncoder(EmbeddingModel):
         are never silently truncated, encodes every chunk, and mean-pools the raw
         (unnormalized) chunk vectors into one (384,) vector per text. Normalization
         is deferred to the caller (e.g. FAISS index construction).
-        Not pure: moves the model onto the detected device as a side effect.
         """
         dim = self.model.get_embedding_dimension()
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -97,16 +98,17 @@ class BiEncoder(EmbeddingModel):
         model.encode()'s normalize_embeddings=False flag isn't enough to get
         raw vectors out — it still runs through Normalize. We call modules 0
         and 1 directly to skip it, since normalization is deferred (ADR-0007).
-        Moves the model onto `device` in place.
         """
         transformer, pooling = self.model[0], self.model[1]
         self.model.to(device)
         batches = []
         with torch.no_grad():
             for start in tqdm(
-                range(0, len(texts), 128), desc="embedding chunks", unit="batch"
+                range(0, len(texts), ENCODE_BATCH_SIZE),
+                desc="embedding chunks",
+                unit="batch",
             ):
-                batch = texts[start : start + 128]
+                batch = texts[start : start + ENCODE_BATCH_SIZE]
                 features = self.model.preprocess(batch)
                 features = {
                     key: value.to(device) if torch.is_tensor(value) else value
@@ -121,7 +123,7 @@ def _chunk_text(text: str, tokenizer: Tokenizer, max_tokens: int) -> list[str]:
     """Split text into non-overlapping windows of at most max_tokens tokens.
 
     Uses the real model tokenizer rather than a char/word-count heuristic
-    (see ADR-0007). Pure given the tokenizer.
+    (see ADR-0007).
     """
     token_ids = tokenizer.encode(text, add_special_tokens=False)
     if not token_ids:

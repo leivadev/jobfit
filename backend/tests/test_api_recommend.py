@@ -6,9 +6,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend.api.app import create_app
-from backend.api.rate_limit import RECOMMEND_RATE_LIMIT_PER_MINUTE
+from backend.api.rate_limit import RECOMMEND_RATE_LIMIT_PER_MINUTE, limiter
 from backend.api.state import AppState
 from backend.api.upload_limits import MAX_UPLOAD_SIZE_BYTES
+from backend.config import forwarded_for_address
 from backend.domain.search import JobSearchIndex
 
 CANDIDATE_PROFILE = "Jane Doe\nBackend Python Developer with 4 years experience."
@@ -126,7 +127,9 @@ def test_recommend_response_matches_contract_shape(client):
     assert result["rerank_score"] == pytest.approx(0.9)
 
 
-def test_recommend_without_exp_years_or_keywords_leaves_new_fields_absent_signal(client):
+def test_recommend_without_exp_years_or_keywords_leaves_new_fields_absent_signal(
+    client,
+):
     response = client.post(
         "/recommend",
         files={"file": ("cv.txt", CANDIDATE_PROFILE.encode("utf-8"), "text/plain")},
@@ -138,7 +141,9 @@ def test_recommend_without_exp_years_or_keywords_leaves_new_fields_absent_signal
         assert result["exp_distance"] is None
 
 
-def test_recommend_tiers_by_keyword_match_then_exp_distance_when_both_signals_declared(client):
+def test_recommend_tiers_by_keyword_match_then_exp_distance_when_both_signals_declared(
+    client,
+):
     response = client.post(
         "/recommend",
         files={"file": ("cv.txt", CANDIDATE_PROFILE.encode("utf-8"), "text/plain")},
@@ -322,13 +327,54 @@ def test_recommend_returns_429_on_the_fourth_request_within_a_minute(client):
     assert fourth_response.status_code == 429
 
 
+def _use_forwarded_for_key(monkeypatch) -> None:
+    # The limiter is a module singleton and slowapi binds key_func onto each
+    # route's Limit at decoration time, so swap it there instead of going
+    # through RATE_LIMIT_KEY_STRATEGY (read once at import).
+    for route_limits in limiter._route_limits.values():
+        for route_limit in route_limits:
+            monkeypatch.setattr(route_limit, "key_func", forwarded_for_address)
+
+
+def _post_cv(client, forwarded_for: str):
+    return client.post(
+        "/recommend",
+        files={"file": ("cv.txt", CANDIDATE_PROFILE.encode("utf-8"), "text/plain")},
+        headers={"X-Forwarded-For": forwarded_for},
+    )
+
+
+def test_forwarded_for_strategy_rate_limits_each_proxy_reported_ip_separately(
+    client, monkeypatch
+):
+    _use_forwarded_for_key(monkeypatch)
+
+    for _ in range(RECOMMEND_RATE_LIMIT_PER_MINUTE):
+        assert _post_cv(client, "203.0.113.1").status_code == 200
+
+    assert _post_cv(client, "203.0.113.1").status_code == 429
+    assert _post_cv(client, "203.0.113.2").status_code == 200
+
+
+def test_forwarded_for_strategy_ignores_client_prepended_entries(client, monkeypatch):
+    _use_forwarded_for_key(monkeypatch)
+
+    for attempt in range(RECOMMEND_RATE_LIMIT_PER_MINUTE):
+        assert _post_cv(client, f"6.6.6.{attempt}, 203.0.113.1").status_code == 200
+
+    assert _post_cv(client, "7.7.7.7, 203.0.113.1").status_code == 429
+    assert _post_cv(client, "7.7.7.7, 203.0.113.2").status_code == 200
+
+
 def test_health_is_not_rate_limited(client):
     for _ in range(5):
         response = client.get("/health")
         assert response.status_code == 200
 
 
-LARGE_FIXTURE_CANDIDATE_PROFILE = "Jane Doe\nJunior Python Developer with 1 year of experience."
+LARGE_FIXTURE_CANDIDATE_PROFILE = (
+    "Jane Doe\nJunior Python Developer with 1 year of experience."
+)
 
 
 def make_large_fixture_state() -> AppState:

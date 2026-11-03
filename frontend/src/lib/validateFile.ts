@@ -1,3 +1,4 @@
+// Keep in sync with backend/src/backend/api/upload_limits.py.
 export const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
 export const ACCEPTED_MIME_TYPES = [

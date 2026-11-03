@@ -13,8 +13,16 @@ export interface RecommendResponse {
   results: Recommendation[];
 }
 
+/** Everything else past the client-side pre-check: timeout, other 4xx/5xx, network failure. */
+export class RecommendError extends Error {
+  constructor(message = 'Recommend request failed') {
+    super(message);
+    this.name = 'RecommendError';
+  }
+}
+
 /** HTTP 429: the visitor should wait and retry, not assume the app is broken. */
-export class RateLimitError extends Error {
+export class RateLimitError extends RecommendError {
   constructor() {
     super('Rate limited');
     this.name = 'RateLimitError';
@@ -22,18 +30,10 @@ export class RateLimitError extends Error {
 }
 
 /** The backend never came up within the poll budget: distinct from a normal request failure. */
-export class ServerStartupTimeoutError extends Error {
+export class ServerStartupTimeoutError extends RecommendError {
   constructor() {
     super('Server did not become healthy in time');
     this.name = 'ServerStartupTimeoutError';
-  }
-}
-
-/** Everything else past the client-side pre-check: timeout, other 4xx/5xx, network failure. */
-export class RecommendError extends Error {
-  constructor(message = 'Recommend request failed') {
-    super(message);
-    this.name = 'RecommendError';
   }
 }
 
@@ -138,7 +138,7 @@ export async function recommend(file: File, { signal, onStage }: RecommendOption
       cleanup();
     }
   } catch (error) {
-    if (error instanceof RateLimitError || error instanceof RecommendError || error instanceof ServerStartupTimeoutError) {
+    if (error instanceof RecommendError) {
       throw error;
     }
     throw new RecommendError();

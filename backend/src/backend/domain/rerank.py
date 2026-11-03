@@ -4,7 +4,7 @@ from typing import Protocol
 import numpy as np
 from sentence_transformers import CrossEncoder as _SentenceTransformersCrossEncoder
 
-TOP_K = 10
+RESPONSE_SIZE = 10
 
 
 @dataclass(frozen=True)
@@ -26,8 +26,8 @@ class CrossEncoderModel(Protocol):
 class CrossEncoder:
     """`ms-marco-MiniLM-L6-v2` Cross-encoder that scores (Candidate Profile, Job) pairs.
 
-    Scores the top-20 shortlist from `search.py`; too slow to run over the
-    whole Job Index (see CONTEXT.md's Cross-encoder definition).
+    Too slow to run over the whole Job Index, so it only scores the `search.py`
+    shortlist (see CONTEXT.md's Cross-encoder definition).
     """
 
     MODEL_NAME = "cross-encoder/ms-marco-MiniLM-L6-v2"
@@ -48,13 +48,9 @@ def rerank(
     candidate_profile: str,
     shortlist: list[ShortlistItem],
     model: CrossEncoderModel,
-    top_k: int = TOP_K,
+    top_k: int = RESPONSE_SIZE,
 ) -> list[RerankResult]:
-    """Score `shortlist` with the Cross-encoder and return the top-k by Rerank Score.
-
-    Pure given `model`: `model.predict` may not be (e.g. a real CrossEncoder
-    moves itself onto a device), but this function itself has no side effects.
-    """
+    """Score `shortlist` with the Cross-encoder and return the top-k by Rerank Score."""
     if not shortlist:
         return []
 
@@ -73,9 +69,7 @@ def rerank(
 class TieredJob:
     """A shortlisted Job carrying its Rerank Score plus precomputed `keyword_match`/`exp_distance`.
 
-    Decoupled from `matching.CandidateSignals` and Job Metadata so
-    `tier_by_fit` stays pure: callers compute `keyword_match`/`exp_distance`
-    from Job Metadata first, then hand in the plain result.
+    Precomputed by the caller so `tier_by_fit` needs no Job Metadata.
     """
 
     job_row: int
@@ -85,19 +79,11 @@ class TieredJob:
 
 
 def tier_by_fit(jobs: list[TieredJob]) -> list[TieredJob]:
-    """Tiered sort: `keyword_match` first, then `exp_distance` ascending, then `rerank_score` descending as tiebreak.
+    """Tiered sort: `keyword_match`, then `exp_distance` ascending, then `rerank_score` descending.
 
-    Applied as three stable sorts from least to most significant criterion, so
-    a criterion that's constant across `jobs` (e.g. every `exp_distance` is
-    `None` because the candidate didn't declare `exp_years`) leaves the prior
-    order untouched — ranking degrades to pure `rerank_score` ordering exactly
-    when a signal wasn't provided, with no special-casing needed. Within the
-    `exp_distance` pass, a job whose distance is `None` sorts after every job
-    with a known distance in the same `keyword_match` tier; this is a genuine
-    no-op only when every job's distance is `None` (signal not declared) — for
-    the rarer case of one job's Job Metadata carrying an off-scale
-    `exp_years` bucket alongside others with known distances, it sorts that
-    job last within its tier rather than truly neutrally. Pure.
+    Three stable sorts, least to most significant, so a criterion that's constant
+    across `jobs` (e.g. no declared `exp_years`) leaves the prior order untouched.
+    A `None` distance sorts after known distances within its tier.
     """
     ranked = sorted(jobs, key=lambda job: job.rerank_score, reverse=True)
     ranked.sort(key=lambda job: (job.exp_distance is None, job.exp_distance))

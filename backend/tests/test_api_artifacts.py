@@ -6,13 +6,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from backend.api.artifacts import (
-    JOBS_INDEX_KEY,
-    JOBS_METADATA_KEY,
-    build_r2_client,
-    load_artifacts,
-)
+from backend.api.artifacts import load_artifacts
 from backend.config import Settings
+from backend.r2 import JOBS_INDEX_KEY, JOBS_METADATA_KEY, build_r2_client
 
 
 def make_settings():
@@ -40,7 +36,11 @@ def make_fixture_artifacts() -> tuple[bytes, bytes]:
             "company": ["Acme", "Globex", "Initech"],
             "exp_years": ["1-3", "3-5", "5+"],
             "keyword": ["Python", "QA", "DevOps"],
-            "job_text": ["Python Developer text", "QA Engineer text", "DevOps Engineer text"],
+            "job_text": [
+                "Python Developer text",
+                "QA Engineer text",
+                "DevOps Engineer text",
+            ],
         }
     )
     buf = io.BytesIO()
@@ -79,7 +79,11 @@ def test_load_artifacts_returns_search_index_and_metadata():
     search_index, metadata = load_artifacts(settings, client=client)
 
     assert len(metadata) == 3
-    assert list(metadata["position"]) == ["Python Developer", "QA Engineer", "DevOps Engineer"]
+    assert list(metadata["position"]) == [
+        "Python Developer",
+        "QA Engineer",
+        "DevOps Engineer",
+    ]
     results = search_index.search(np.ones(8, dtype=np.float32))
     assert len(results) == 3
 
@@ -91,8 +95,12 @@ def test_load_artifacts_reads_from_configured_bucket():
 
     load_artifacts(settings, client=client)
 
-    client.get_object.assert_any_call(Bucket=settings.r2_bucket_name, Key=JOBS_INDEX_KEY)
-    client.get_object.assert_any_call(Bucket=settings.r2_bucket_name, Key=JOBS_METADATA_KEY)
+    client.get_object.assert_any_call(
+        Bucket=settings.r2_bucket_name, Key=JOBS_INDEX_KEY
+    )
+    client.get_object.assert_any_call(
+        Bucket=settings.r2_bucket_name, Key=JOBS_METADATA_KEY
+    )
 
 
 def test_load_artifacts_propagates_errors():

@@ -17,7 +17,13 @@ def test_exp_years_scale_is_the_five_ordered_buckets():
 
 def test_keywords_is_the_full_forty_five_value_controlled_vocabulary():
     assert len(KEYWORD_VOCABULARY) == 45
-    assert {"Design", "Product Manager", "Marketing", "Other", "JavaScript"} <= KEYWORD_VOCABULARY
+    assert {
+        "Design",
+        "Product Manager",
+        "Marketing",
+        "Other",
+        "JavaScript",
+    } <= KEYWORD_VOCABULARY
 
 
 def test_exp_distance_is_none_when_candidate_did_not_declare_exp_years():
@@ -56,7 +62,9 @@ def test_validate_candidate_signals_accepts_no_signals():
 
 
 def test_validate_candidate_signals_accepts_valid_exp_years_and_keywords():
-    validate_candidate_signals(CandidateSignals(exp_years="3y", keywords=["Python", "SQL"]))
+    validate_candidate_signals(
+        CandidateSignals(exp_years="3y", keywords=["Python", "SQL"])
+    )
 
 
 def test_validate_candidate_signals_rejects_exp_years_outside_the_scale():

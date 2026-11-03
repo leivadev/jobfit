@@ -37,17 +37,27 @@ def test_recommend_never_writes_the_cv_to_disk(monkeypatch):
 
     monkeypatch.setattr(tempfile.SpooledTemporaryFile, "rollover", spy_rollover)
     monkeypatch.setattr(
-        Path, "write_bytes", lambda self, data: disk_write_calls.append("Path.write_bytes")
+        Path,
+        "write_bytes",
+        lambda self, data: disk_write_calls.append("Path.write_bytes"),
     )
     monkeypatch.setattr(
-        Path, "write_text", lambda self, data, *a, **kw: disk_write_calls.append("Path.write_text")
+        Path,
+        "write_text",
+        lambda self, data, *a, **kw: disk_write_calls.append("Path.write_text"),
     )
 
     app = create_app(state_factory=_large_upload_fixture_state)
     with TestClient(app) as client:
         response = client.post(
             "/recommend",
-            files={"file": ("cv.txt", _LARGE_CANDIDATE_PROFILE.encode("utf-8"), "text/plain")},
+            files={
+                "file": (
+                    "cv.txt",
+                    _LARGE_CANDIDATE_PROFILE.encode("utf-8"),
+                    "text/plain",
+                )
+            },
         )
 
     assert response.status_code == 200

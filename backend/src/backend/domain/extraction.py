@@ -44,13 +44,12 @@ def extract_text(
     `content` is read entirely in memory (io.BytesIO) and never written to
     disk, per ADR-0001 / the privacy requirement. Format is resolved by
     `detect_format`; MIME type takes precedence over filename extension.
-    Pure: `content` is only ever read from, never mutated.
     """
-    format_ = detect_format(filename, mime_type)
+    cv_format = detect_format(filename, mime_type)
 
-    if format_ is CvFormat.PDF:
+    if cv_format is CvFormat.PDF:
         text = _extract_pdf_text(content)
-    elif format_ is CvFormat.DOCX:
+    elif cv_format is CvFormat.DOCX:
         text = _extract_docx_text(content)
     else:
         text = _extract_plain_text(content)
@@ -63,8 +62,7 @@ def extract_text(
 def detect_format(filename: str | None, mime_type: str | None) -> CvFormat:
     """Public so the API layer can reject an unsupported/undetectable format
     before reading the upload body, reusing this instead of a second,
-    parallel MIME check. Pure: no side effects, same inputs always resolve to
-    the same format.
+    parallel MIME check.
     """
     if mime_type in _MIME_TYPES:
         return _MIME_TYPES[mime_type]
@@ -75,16 +73,17 @@ def detect_format(filename: str | None, mime_type: str | None) -> CvFormat:
             return _EXTENSIONS[f".{extension.lower()}"]
 
     raise UnsupportedCvFormatError(
-        f"Can't determine CV format from mime_type={mime_type!r}, "
-        f"filename={filename!r}"
+        f"Can't determine CV format from mime_type={mime_type!r}, filename={filename!r}"
     )
 
 
 def _extract_pdf_text(content: bytes) -> str:
-    """Pure: `content` is only ever read from, never mutated."""
     try:
         reader = pypdf.PdfReader(io.BytesIO(content))
-        if reader.is_encrypted and reader.decrypt("") == pypdf.PasswordType.NOT_DECRYPTED:
+        if (
+            reader.is_encrypted
+            and reader.decrypt("") == pypdf.PasswordType.NOT_DECRYPTED
+        ):
             raise CvExtractionError("CV PDF is password-protected")
         pages = [page.extract_text() or "" for page in reader.pages]
         return "\n".join(pages).strip()
@@ -100,8 +99,7 @@ def _extract_docx_text(content: bytes) -> str:
     """Extract paragraph and table text, in document order.
 
     CVs commonly lay out skills/experience in tables, so `document.paragraphs`
-    alone would silently drop that content. Pure: `content` is only ever read
-    from, never mutated.
+    alone would silently drop that content.
     """
     try:
         document = Document(io.BytesIO(content))
@@ -120,7 +118,6 @@ def _extract_docx_text(content: bytes) -> str:
 
 
 def _extract_plain_text(content: bytes) -> str:
-    """Pure: `content` is only ever read from, never mutated."""
     try:
         return content.decode("utf-8").strip()
     except UnicodeDecodeError as error:

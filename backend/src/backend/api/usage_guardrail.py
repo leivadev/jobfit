@@ -58,8 +58,12 @@ class UsageGuardrailMiddleware(BaseHTTPMiddleware):
 
         return (
             _nearing(counters.request_count, settings.usage_guardrail_request_limit)
-            or _nearing(counters.vcpu_seconds, settings.usage_guardrail_vcpu_seconds_limit)
-            or _nearing(counters.gib_seconds, settings.usage_guardrail_gib_seconds_limit)
+            or _nearing(
+                counters.vcpu_seconds, settings.usage_guardrail_vcpu_seconds_limit
+            )
+            or _nearing(
+                counters.gib_seconds, settings.usage_guardrail_gib_seconds_limit
+            )
         )
 
     async def dispatch(
@@ -72,7 +76,9 @@ class UsageGuardrailMiddleware(BaseHTTPMiddleware):
 
         if self._over_threshold():
             return JSONResponse(
-                {"detail": "Service temporarily unavailable: nearing monthly usage grant."},
+                {
+                    "detail": "Service temporarily unavailable: nearing monthly usage grant."
+                },
                 status_code=503,
             )
 
@@ -81,7 +87,11 @@ class UsageGuardrailMiddleware(BaseHTTPMiddleware):
         duration = time.monotonic() - start
 
         self._counters.request_count += 1
-        self._counters.vcpu_seconds += duration * self._settings.usage_guardrail_vcpu_allocation
-        self._counters.gib_seconds += duration * self._settings.usage_guardrail_gib_allocation
+        self._counters.vcpu_seconds += (
+            duration * self._settings.usage_guardrail_vcpu_allocation
+        )
+        self._counters.gib_seconds += (
+            duration * self._settings.usage_guardrail_gib_allocation
+        )
 
         return response

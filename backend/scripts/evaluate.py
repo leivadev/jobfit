@@ -8,7 +8,6 @@ the embedding/rerank models or the Job Index change. No cron/CI trigger, same pa
 
 import datetime
 import json
-import math
 import sys
 from pathlib import Path
 
@@ -18,11 +17,11 @@ from datasets import load_dataset
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from eval_metrics import METRICS, mean_metrics
+
 from backend.domain.embeddings import BiEncoder
-from backend.domain.rerank import TOP_K as DISPLAY_CUTOFF
 from backend.domain.rerank import CrossEncoder, ShortlistItem, rerank
-from backend.domain.search import TOP_K as SHORTLIST_SIZE
-from backend.domain.search import JobSearchIndex
+from backend.domain.search import SHORTLIST_SIZE, JobSearchIndex
 
 ARTIFACTS_DIR = Path(__file__).parent.parent / "artifacts"
 GROUND_TRUTH_PATH = Path(__file__).parent / "eval_ground_truth.json"
@@ -43,77 +42,6 @@ def load_candidate_profiles(candidate_ids: set[str]) -> dict[str, str]:
     df = load_dataset(CANDIDATE_DATASET_NAME, split="train").to_pandas()
     subset = df[df["id"].isin(candidate_ids)]
     return dict(zip(subset["id"], subset["CV"]))
-
-
-def precision_at_k(ranked_ids: list[str], relevant_ids: set[str], k: int) -> float:
-    hits = sum(1 for job_id in ranked_ids[:k] if job_id in relevant_ids)
-    return hits / k
-
-
-def reciprocal_rank(ranked_ids: list[str], relevant_ids: set[str], k: int) -> float:
-    for rank, job_id in enumerate(ranked_ids[:k], start=1):
-        if job_id in relevant_ids:
-            return 1 / rank
-    return 0.0
-
-
-def ndcg_at_k(ranked_ids: list[str], relevant_ids: set[str], k: int) -> float:
-    """Binary-relevance NDCG@k: rewards ranking multiple relevant items higher, not just
-    their presence in the top k (unlike Precision@k)."""
-    if not relevant_ids:
-        return 0.0
-    dcg = sum(
-        1 / math.log2(rank + 1)
-        for rank, job_id in enumerate(ranked_ids[:k], start=1)
-        if job_id in relevant_ids
-    )
-    ideal_hits = min(len(relevant_ids), k)
-    idcg = sum(1 / math.log2(rank + 1) for rank in range(1, ideal_hits + 1))
-    return dcg / idcg if idcg > 0 else 0.0
-
-
-def average_precision_at_k(ranked_ids: list[str], relevant_ids: set[str], k: int) -> float:
-    """AP@k, normalized by min(k, |relevant|) so a perfect ranking scores 1.0 even when
-    fewer than k relevant items exist. Averaging this across queries gives MAP@k."""
-    if not relevant_ids:
-        return 0.0
-    hits = 0
-    precision_sum = 0.0
-    for rank, job_id in enumerate(ranked_ids[:k], start=1):
-        if job_id in relevant_ids:
-            hits += 1
-            precision_sum += hits / rank
-    denominator = min(len(relevant_ids), k)
-    return precision_sum / denominator if denominator > 0 else 0.0
-
-
-def hit_rate_at_k(ranked_ids: list[str], relevant_ids: set[str], k: int) -> float:
-    """1.0 if any relevant item is in the top k, else 0.0."""
-    return 1.0 if any(job_id in relevant_ids for job_id in ranked_ids[:k]) else 0.0
-
-
-# (name, fn, k) — Precision/NDCG/HitRate stay at DISPLAY_CUTOFF (what /recommend actually
-# shows); MRR/MAP also get a SHORTLIST_SIZE reading, to separate a retrieval miss
-# (bi-encoder never shortlisted the right job) from a reranking miss (it was in the
-# shortlist, cross-encoder just didn't surface it in the top DISPLAY_CUTOFF). Both
-# constants are imported from production (search.py/rerank.py), not hardcoded, so this
-# eval can't silently drift out of sync with what /recommend actually does.
-METRICS = [
-    (f"Precision@{DISPLAY_CUTOFF}", precision_at_k, DISPLAY_CUTOFF),
-    (f"MRR@{DISPLAY_CUTOFF}", reciprocal_rank, DISPLAY_CUTOFF),
-    (f"MRR@{SHORTLIST_SIZE}", reciprocal_rank, SHORTLIST_SIZE),
-    (f"NDCG@{DISPLAY_CUTOFF}", ndcg_at_k, DISPLAY_CUTOFF),
-    (f"MAP@{DISPLAY_CUTOFF}", average_precision_at_k, DISPLAY_CUTOFF),
-    (f"MAP@{SHORTLIST_SIZE}", average_precision_at_k, SHORTLIST_SIZE),
-    (f"HitRate@{DISPLAY_CUTOFF}", hit_rate_at_k, DISPLAY_CUTOFF),
-]
-
-
-def mean_metrics(rankings: list[tuple[list[str], set[str]]]) -> dict[str, float]:
-    return {
-        name: sum(metric_fn(ranked, relevant, k) for ranked, relevant in rankings) / len(rankings)
-        for name, metric_fn, k in METRICS
-    }
 
 
 def main() -> None:
@@ -153,17 +81,24 @@ def main() -> None:
         baseline_rankings.append((baseline_ranked_ids, relevant_ids))
 
         shortlist = [
-            ShortlistItem(job_row=result.job_row, job_text=metadata.iloc[result.job_row]["job_text"])
+            ShortlistItem(
+                job_row=result.job_row,
+                job_text=metadata.iloc[result.job_row]["job_text"],
+            )
             for result in baseline_results
         ]
-        rerank_results = rerank(candidate_profile, shortlist, cross_encoder, top_k=SHORTLIST_SIZE)
+        rerank_results = rerank(
+            candidate_profile, shortlist, cross_encoder, top_k=SHORTLIST_SIZE
+        )
         rerank_ranked_ids = [job_ids[result.job_row] for result in rerank_results]
         rerank_rankings.append((rerank_ranked_ids, relevant_ids))
 
     baseline_metrics = mean_metrics(baseline_rankings)
     rerank_metrics = mean_metrics(rerank_rankings)
 
-    print(f"\n[evaluate] Job Index artifacts built {build_date} (local, not re-fetched from R2)")
+    print(
+        f"\n[evaluate] Job Index artifacts built {build_date} (local, not re-fetched from R2)"
+    )
     print(f"{'metric':<15}{'baseline':>12}{'rerank':>12}{'delta':>12}")
     for label, _, _ in METRICS:
         baseline_value = baseline_metrics[label]

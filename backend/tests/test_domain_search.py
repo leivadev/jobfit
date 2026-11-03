@@ -2,7 +2,7 @@ import faiss
 import numpy as np
 import pytest
 
-from backend.domain.search import TOP_K, JobSearchIndex, SearchResult
+from backend.domain.search import SHORTLIST_SIZE, JobSearchIndex, SearchResult
 
 
 def make_index(n=5, dim=8, seed=0):
@@ -20,7 +20,7 @@ def test_search_returns_top_k_by_default():
 
     results = search_index.search(embeddings[0])
 
-    assert len(results) == TOP_K
+    assert len(results) == SHORTLIST_SIZE
 
 
 def test_search_respects_smaller_index_than_top_k():

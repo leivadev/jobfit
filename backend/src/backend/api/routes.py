@@ -22,7 +22,13 @@ from backend.domain.matching import (
     keyword_match,
     validate_candidate_signals,
 )
-from backend.domain.rerank import TOP_K, ShortlistItem, TieredJob, rerank, tier_by_fit
+from backend.domain.rerank import (
+    RESPONSE_SIZE,
+    ShortlistItem,
+    TieredJob,
+    rerank,
+    tier_by_fit,
+)
 
 router = APIRouter()
 logger = structlog.get_logger()
@@ -66,7 +72,9 @@ async def recommend(
         file_size_bytes = len(content)
 
         try:
-            candidate_profile = extract_text(content, filename=file.filename, mime_type=file.content_type)
+            candidate_profile = extract_text(
+                content, filename=file.filename, mime_type=file.content_type
+            )
         except (UnsupportedCvFormatError, CvExtractionError) as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
 
@@ -74,13 +82,18 @@ async def recommend(
         search_results = state.search_index.search(query_vector)
 
         shortlist = [
-            ShortlistItem(job_row=result.job_row, job_text=state.metadata.iloc[result.job_row]["job_text"])
+            ShortlistItem(
+                job_row=result.job_row,
+                job_text=state.metadata.iloc[result.job_row]["job_text"],
+            )
             for result in search_results
         ]
         # Score the whole shortlist, not just the top 10: tiering below must see
         # every scored Job so it can surface a same-tier Job that raw rerank_score
         # alone had ranked outside the top 10.
-        rerank_results = rerank(candidate_profile, shortlist, state.cross_encoder, top_k=len(shortlist))
+        rerank_results = rerank(
+            candidate_profile, shortlist, state.cross_encoder, top_k=len(shortlist)
+        )
 
         tiered_jobs = []
         for result in rerank_results:
@@ -89,11 +102,15 @@ async def recommend(
                 TieredJob(
                     job_row=result.job_row,
                     rerank_score=result.rerank_score,
-                    keyword_match=keyword_match(candidate_signals.keywords, row["keyword"]),
-                    exp_distance=exp_distance(candidate_signals.exp_years, row["exp_years"]),
+                    keyword_match=keyword_match(
+                        candidate_signals.keywords, row["keyword"]
+                    ),
+                    exp_distance=exp_distance(
+                        candidate_signals.exp_years, row["exp_years"]
+                    ),
                 )
             )
-        ranked_jobs = tier_by_fit(tiered_jobs)[:TOP_K]
+        ranked_jobs = tier_by_fit(tiered_jobs)[:RESPONSE_SIZE]
 
         results = [_to_recommendation(job, state.metadata) for job in ranked_jobs]
         return RecommendResponse(results=results)

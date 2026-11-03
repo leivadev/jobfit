@@ -1,9 +1,10 @@
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from storage import JOBS_INDEX_KEY, JOBS_METADATA_KEY, build_r2_client, upload_artifacts
+from storage import upload_artifacts
 
 from backend.config import Settings
+from backend.r2 import JOBS_INDEX_KEY, JOBS_METADATA_KEY, build_r2_client
 
 
 def make_settings():
@@ -33,6 +34,10 @@ def test_upload_artifacts_uploads_index_and_metadata_to_fixed_keys():
 
     upload_artifacts(client, settings, index_path, metadata_path)
 
-    client.upload_file.assert_any_call(str(index_path), settings.r2_bucket_name, JOBS_INDEX_KEY)
-    client.upload_file.assert_any_call(str(metadata_path), settings.r2_bucket_name, JOBS_METADATA_KEY)
+    client.upload_file.assert_any_call(
+        str(index_path), settings.r2_bucket_name, JOBS_INDEX_KEY
+    )
+    client.upload_file.assert_any_call(
+        str(metadata_path), settings.r2_bucket_name, JOBS_METADATA_KEY
+    )
     assert client.upload_file.call_count == 2

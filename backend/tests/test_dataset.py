@@ -32,7 +32,9 @@ def jobs_df():
             make_row("Wayne Ent.", "Ruby Developer", keyword="Ruby"),
             make_row("Wayne Ent.", "Golang Developer", keyword="Golang"),
             make_row("Stark Ind.", "SQL Developer", keyword="SQL"),
-            make_row("Stark Ind.", "Scala Developer", keyword="Scala"),  # not in keyword list
+            make_row(
+                "Stark Ind.", "Scala Developer", keyword="Scala"
+            ),  # not in keyword list
             make_row("Wonka Co.", "Short Desc Job", keyword="Java", desc=SHORT_DESC),
             make_row("Wonka Co.", "Empty Desc Job", keyword="Java", desc=""),
         ]
@@ -40,9 +42,24 @@ def jobs_df():
 
 
 KEYWORDS = [
-    "QA", "QA Automation", "DevOps", "iOS", "Android",
-    "Data Analyst", "Data Engineer", "Data Science",
-    "JavaScript", ".NET", "Java", "Node.js", "PHP", "Python", "C++", "Ruby", "Golang", "SQL",
+    "QA",
+    "QA Automation",
+    "DevOps",
+    "iOS",
+    "Android",
+    "Data Analyst",
+    "Data Engineer",
+    "Data Science",
+    "JavaScript",
+    ".NET",
+    "Java",
+    "Node.js",
+    "PHP",
+    "Python",
+    "C++",
+    "Ruby",
+    "Golang",
+    "SQL",
 ]
 
 

@@ -1,10 +1,12 @@
 import pytest
+from fastapi import Request
 from pydantic import ValidationError
 from slowapi.util import get_remote_address
 
 from backend.config import (
     Settings,
     UsageGuardrailSettings,
+    forwarded_for_address,
     resolve_cors_allowed_origins,
     resolve_rate_limit_key_func,
 )
@@ -68,13 +70,40 @@ def test_rate_limit_key_func_defaults_to_remote_address(monkeypatch):
 
 
 def test_rate_limit_key_func_rejects_unknown_strategy(monkeypatch):
-    monkeypatch.setenv("RATE_LIMIT_KEY_STRATEGY", "forwarded_header")
+    monkeypatch.setenv("RATE_LIMIT_KEY_STRATEGY", "bogus")
 
-    with pytest.raises(ValueError, match="forwarded_header"):
+    with pytest.raises(ValueError, match="bogus"):
         resolve_rate_limit_key_func()
 
 
-def test_usage_guardrail_defaults_to_disabled_with_azure_free_grant_thresholds(monkeypatch):
+def test_rate_limit_key_func_resolves_forwarded_for(monkeypatch):
+    monkeypatch.setenv("RATE_LIMIT_KEY_STRATEGY", "forwarded_for")
+
+    assert resolve_rate_limit_key_func() is forwarded_for_address
+
+
+def _request(headers: dict[str, str]) -> Request:
+    scope = {
+        "type": "http",
+        "headers": [(k.lower().encode(), v.encode()) for k, v in headers.items()],
+        "client": ("10.0.0.1", 1234),
+    }
+    return Request(scope)
+
+
+def test_forwarded_for_uses_last_hop_so_client_spoofing_is_ignored():
+    request = _request({"X-Forwarded-For": "6.6.6.6, 203.0.113.7"})
+
+    assert forwarded_for_address(request) == "203.0.113.7"
+
+
+def test_forwarded_for_falls_back_to_peer_address_without_header():
+    assert forwarded_for_address(_request({})) == "10.0.0.1"
+
+
+def test_usage_guardrail_defaults_to_disabled_with_azure_free_grant_thresholds(
+    monkeypatch,
+):
     monkeypatch.delenv("USAGE_GUARDRAIL_ENABLED", raising=False)
 
     settings = UsageGuardrailSettings(_env_file=None)

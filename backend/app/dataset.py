@@ -12,8 +12,10 @@ def load_raw_jobs() -> pd.DataFrame:
     return df
 
 
-def filter_jobs(df: pd.DataFrame, keywords: list[str], min_desc_chars: int = 200) -> pd.DataFrame:
-    """Filter by Primary Keyword in keywords, drop empty/too-short descriptions. Pure."""
+def filter_jobs(
+    df: pd.DataFrame, keywords: list[str], min_desc_chars: int = 200
+) -> pd.DataFrame:
+    """Filter by Primary Keyword in keywords, drop empty/too-short descriptions."""
     keyword_mask = df["Primary Keyword"].isin(keywords)
     length_mask = df["Long Description"].str.len() >= min_desc_chars
     return df[keyword_mask & length_mask]
@@ -21,10 +23,16 @@ def filter_jobs(df: pd.DataFrame, keywords: list[str], min_desc_chars: int = 200
 
 def deduplicate_jobs(df: pd.DataFrame) -> pd.DataFrame:
     """Dedup by (Company Name, Position), case-insensitive/whitespace-normalized comparison,
-    keeping the first-seen row with its original casing. Pure."""
+    keeping the first-seen row with its original casing."""
     dedup_key = (
-        df["Company Name"].str.strip().str.lower().str.replace(WHITESPACE_RE, " ", regex=True)
+        df["Company Name"]
+        .str.strip()
+        .str.lower()
+        .str.replace(WHITESPACE_RE, " ", regex=True)
         + "\x00"
-        + df["Position"].str.strip().str.lower().str.replace(WHITESPACE_RE, " ", regex=True)
+        + df["Position"]
+        .str.strip()
+        .str.lower()
+        .str.replace(WHITESPACE_RE, " ", regex=True)
     )
     return df[~dedup_key.duplicated()]
